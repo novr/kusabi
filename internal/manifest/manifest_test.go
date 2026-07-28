@@ -1,0 +1,95 @@
+package manifest_test
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/novr/kusabi/internal/manifest"
+)
+
+func TestLoadSave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+
+	m := &manifest.Manifest{
+		Version:     "1",
+		Name:        "test-eco",
+		Description: "test",
+		Repositories: map[string]manifest.Repository{
+			"app": {
+				Path: "packages/app",
+				URL:  "git@github.com:org/app.git",
+				Role: "App",
+				Tags: []string{"frontend"},
+			},
+		},
+	}
+
+	if err := manifest.Save(m, path); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := manifest.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Name != "test-eco" {
+		t.Errorf("got Name=%q, want %q", loaded.Name, "test-eco")
+	}
+	repo, ok := loaded.Repositories["app"]
+	if !ok {
+		t.Fatal("repository 'app' not found")
+	}
+	if repo.URL != "git@github.com:org/app.git" {
+		t.Errorf("unexpected URL: %s", repo.URL)
+	}
+}
+
+func TestFind(t *testing.T) {
+	root := t.TempDir()
+	manifestPath := filepath.Join(root, manifest.Filename)
+	if err := os.WriteFile(manifestPath, []byte("version: \"1\"\nname: test\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find from a nested subdirectory
+	nested := filepath.Join(root, "a", "b")
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	found, err := manifest.Find(nested)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found != manifestPath {
+		t.Errorf("got %q, want %q", found, manifestPath)
+	}
+}
+
+func TestFind_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	_, err := manifest.Find(dir)
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+}
+
+func TestFilterByTag(t *testing.T) {
+	m := &manifest.Manifest{
+		Repositories: map[string]manifest.Repository{
+			"ios":     {Tags: []string{"frontend", "ios"}},
+			"backend": {Tags: []string{"backend"}},
+			"web":     {Tags: []string{"frontend"}},
+		},
+	}
+
+	result := m.FilterByTag("frontend")
+	if len(result) != 2 {
+		t.Errorf("got %d repos, want 2", len(result))
+	}
+	if _, ok := result["backend"]; ok {
+		t.Error("backend should not be included")
+	}
+}
