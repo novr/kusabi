@@ -1,6 +1,7 @@
 package declaration
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,28 @@ func UpdateGitignore(dir string, entries []string) error {
 		out.WriteString("\n" + tail)
 	}
 
-	return os.WriteFile(path, []byte(out.String()), 0644)
+	return writeFileAtomic(path, []byte(out.String()), 0644)
+}
+
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".kusabi-gitignore-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write temp: %w", err)
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("chmod temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp: %w", err)
+	}
+	return os.Rename(tmpName, path)
 }
 
 // GitignoreEntries returns paths listed in the kusabi-managed block.
@@ -88,7 +110,7 @@ func contains(slice []string, s string) bool {
 }
 
 func removeEntry(slice []string, s string) []string {
-	out := slice[:0]
+	out := make([]string, 0, len(slice))
 	for _, v := range slice {
 		if v != s {
 			out = append(out, v)
@@ -97,13 +119,17 @@ func removeEntry(slice []string, s string) []string {
 	return out
 }
 
-func ensureGitignoreEntry(dir, repoPath string) error {
+// EnsureGitignoreEntry adds repoPath to the kusabi-managed block if not already present.
+func EnsureGitignoreEntry(dir, repoPath string) error {
 	entries := GitignoreEntries(dir)
 	entry := repoPath + "/"
 	if contains(entries, entry) || contains(entries, repoPath) {
 		return nil
 	}
-	return UpdateGitignore(dir, append(entries, entry))
+	newEntries := make([]string, len(entries)+1)
+	copy(newEntries, entries)
+	newEntries[len(entries)] = entry
+	return UpdateGitignore(dir, newEntries)
 }
 
 func removeGitignoreEntry(dir, repoPath string) error {

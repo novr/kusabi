@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 
 	"github.com/novr/kusabi/internal/declaration"
 	"github.com/novr/kusabi/internal/git"
@@ -64,7 +65,7 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 		}
 
 		entry := repo.Path + "/"
-		ignored := contains(entries, entry) || contains(entries, repo.Path)
+		ignored := slices.Contains(entries, entry) || slices.Contains(entries, repo.Path)
 		if !ignored {
 			checks = append(checks, Check{
 				Label:  fmt.Sprintf("[%s] .gitignore", name),
@@ -88,11 +89,3 @@ func HasIssues(checks []Check) bool {
 	return false
 }
 
-func contains(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}

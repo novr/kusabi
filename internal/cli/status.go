@@ -21,6 +21,11 @@ func newStatusCmd() *cobra.Command {
 				return err
 			}
 
+			if len(f.Manifest.Repositories) == 0 {
+				fmt.Println("No repositories defined — run `kusabi add <name> <url>`")
+				return nil
+			}
+
 			g := &git.SystemGit{}
 			results := action.Status(f.RootDir(), f.Manifest, g)
 

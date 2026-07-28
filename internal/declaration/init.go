@@ -21,15 +21,23 @@ context:
 repositories: {}
 `
 
-const agentsMDTemplate = "# AGENTS.md \xe2\x80\x94 Global AI Policy\n\n" +
-	"This project is managed by Kusabi (\xe6\xa5\x94). Multiple repositories are bound here.\n\n" +
-	"## Architecture Overview\n\n" +
-	"(Describe your system architecture here)\n\n" +
-	"## Development Rules\n\n" +
-	"- Commit and Git operations must be performed within each specific sub-repository directory.\n" +
-	"- When implementing features that span repositories, coordinate changes explicitly.\n\n" +
-	"## Repository Roles\n\n" +
-	"(Declare roles in kusabi.yaml; `kusabi context` lists them in the overview section)\n"
+const agentsMDTemplate = `# AGENTS.md — Global AI Policy
+
+This project is managed by Kusabi (楔). Multiple repositories are bound here.
+
+## Architecture Overview
+
+(Describe your system architecture here)
+
+## Development Rules
+
+- Commit and Git operations must be performed within each specific sub-repository directory.
+- When implementing features that span repositories, coordinate changes explicitly.
+
+## Repository Roles
+
+(Declare roles in kusabi.yaml; ` + "`" + `kusabi context` + "`" + ` lists them in the overview section)
+`
 
 // InitResult describes files created or updated by Init.
 type InitResult struct {

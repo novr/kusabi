@@ -63,23 +63,7 @@ func (f *File) Save() error {
 		return fmt.Errorf("marshal manifest: %w", err)
 	}
 
-	tmp, err := os.CreateTemp(filepath.Dir(f.path), ".kusabi-*.yaml.tmp")
-	if err != nil {
-		return fmt.Errorf("create temp: %w", err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close temp: %w", err)
-	}
-	if err := os.Rename(tmpName, f.path); err != nil {
-		return fmt.Errorf("rename to %s: %w", f.path, err)
-	}
-	return nil
+	return atomicWrite(f.path, data)
 }
 
 // Load reads kusabi.yaml. Prefer Open when the file will be saved back.
@@ -123,6 +107,11 @@ func saveNew(m *Manifest, path string) error {
 		return fmt.Errorf("marshal manifest: %w", err)
 	}
 
+	return atomicWrite(path, data)
+}
+
+// atomicWrite writes data to path via a temp-file rename, preventing partial writes.
+func atomicWrite(path string, data []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".kusabi-*.yaml.tmp")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
@@ -336,13 +325,20 @@ func syncSequence(node *yaml.Node, key string, values []string) {
 		seq = &yaml.Node{Kind: yaml.SequenceNode}
 		setMappingValue(node, key, seq)
 	}
+
+	// Determine the style to use for new nodes: match existing items, or plain.
+	var itemStyle yaml.Style
+	if len(seq.Content) > 0 {
+		itemStyle = seq.Content[0].Style
+	}
+
 	content := make([]*yaml.Node, 0, len(values))
 	for i, v := range values {
 		if i < len(seq.Content) {
 			seq.Content[i].Value = v
 			content = append(content, seq.Content[i])
 		} else {
-			content = append(content, &yaml.Node{Kind: yaml.ScalarNode, Value: v})
+			content = append(content, &yaml.Node{Kind: yaml.ScalarNode, Value: v, Style: itemStyle})
 		}
 	}
 	seq.Content = content

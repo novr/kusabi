@@ -59,12 +59,13 @@ func newRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			if _, err := declaration.RemoveRepo(f, name); err != nil {
+			repo, err := declaration.RemoveRepo(f, name)
+			if err != nil {
 				return err
 			}
 
 			fmt.Printf("Removed repository %q from kusabi.yaml\n", name)
-			fmt.Println("Note: local files were not deleted.")
+			fmt.Printf("Note: %s/ is no longer gitignored — delete the directory or add it back to kusabi.yaml.\n", repo.Path)
 			return nil
 		},
 	}

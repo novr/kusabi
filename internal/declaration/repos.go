@@ -41,7 +41,7 @@ func AddRepo(f *manifest.File, name, url string, opts AddRepoOptions) error {
 	f.Manifest.Repositories[name] = repo
 	f.Manifest.RepositoryOrder = append(f.Manifest.RepositoryOrder, name)
 
-	if err := ensureGitignoreEntry(f.RootDir(), path); err != nil {
+	if err := EnsureGitignoreEntry(f.RootDir(), path); err != nil {
 		delete(f.Manifest.Repositories, name)
 		f.Manifest.RepositoryOrder = removeEntry(f.Manifest.RepositoryOrder, name)
 		return err
@@ -62,19 +62,23 @@ func RemoveRepo(f *manifest.File, name string) (manifest.Repository, error) {
 		return manifest.Repository{}, fmt.Errorf("repository %q not found", name)
 	}
 
+	// Snapshot original order so rollback can restore exactly.
+	originalOrder := make([]string, len(f.Manifest.RepositoryOrder))
+	copy(originalOrder, f.Manifest.RepositoryOrder)
+
 	delete(f.Manifest.Repositories, name)
-	updatedOrder := removeEntry(f.Manifest.RepositoryOrder, name)
+	f.Manifest.RepositoryOrder = removeEntry(originalOrder, name)
 
 	if err := removeGitignoreEntry(f.RootDir(), repo.Path); err != nil {
 		f.Manifest.Repositories[name] = repo
+		f.Manifest.RepositoryOrder = originalOrder
 		return manifest.Repository{}, err
 	}
 
-	f.Manifest.RepositoryOrder = updatedOrder
 	if err := f.Save(); err != nil {
 		f.Manifest.Repositories[name] = repo
-		f.Manifest.RepositoryOrder = append(f.Manifest.RepositoryOrder, name)
-		_ = ensureGitignoreEntry(f.RootDir(), repo.Path)
+		f.Manifest.RepositoryOrder = originalOrder
+		_ = EnsureGitignoreEntry(f.RootDir(), repo.Path)
 		return manifest.Repository{}, err
 	}
 	return repo, nil

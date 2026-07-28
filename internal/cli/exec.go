@@ -9,6 +9,7 @@ import (
 
 	"github.com/novr/kusabi/internal/action"
 	"github.com/novr/kusabi/internal/declaration"
+	"github.com/novr/kusabi/internal/git"
 )
 
 func newExecCmd() *cobra.Command {
@@ -27,12 +28,18 @@ func newExecCmd() *cobra.Command {
 				return err
 			}
 
-			repos := f.Manifest.FilterByTag(tag)
-			if len(repos) == 0 {
-				return fmt.Errorf("no repositories matched (tag=%q)", tag)
+			if len(f.Manifest.Repositories) == 0 {
+				fmt.Println("No repositories defined — run `kusabi add <name> <url>`")
+				return nil
 			}
 
-			results := action.Exec(f.RootDir(), repos, command)
+			repos := f.Manifest.FilterByTag(tag)
+			if len(repos) == 0 {
+				return fmt.Errorf("no repositories matched tag %q", tag)
+			}
+
+			g := &git.SystemGit{}
+			results := action.Exec(f.RootDir(), repos, command, g)
 
 			sep := color.New(color.FgCyan, color.Bold)
 			fail := color.New(color.FgRed)

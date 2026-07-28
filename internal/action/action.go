@@ -64,9 +64,12 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []RepoResult {
 }
 
 // Exec runs a shell command in each selected repository.
-func Exec(rootDir string, repos map[string]manifest.Repository, command string) []RepoResult {
+func Exec(rootDir string, repos map[string]manifest.Repository, command string, g git.Runner) []RepoResult {
 	results := runner.Run(repos, 0, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
+		if !g.IsRepo(absPath) {
+			return runner.Result{RepoName: name, Err: fmt.Errorf("not cloned — run `kusabi sync` first")}
+		}
 		c := exec.Command("sh", "-c", command)
 		c.Dir = absPath
 		out, err := c.CombinedOutput()

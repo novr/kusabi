@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -21,6 +22,18 @@ func newSyncCmd() *cobra.Command {
 			f, err := declaration.OpenWorkspace(mustGetwd())
 			if err != nil {
 				return err
+			}
+
+			if len(f.Manifest.Repositories) == 0 {
+				fmt.Println("No repositories defined — run `kusabi add <name> <url>`")
+				return nil
+			}
+
+			// Ensure all manifest paths are present in .gitignore before cloning.
+			for _, repo := range f.Manifest.Repositories {
+				if err := declaration.EnsureGitignoreEntry(f.RootDir(), repo.Path); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: .gitignore update failed for %s: %v\n", repo.Path, err)
+				}
 			}
 
 			g := &git.SystemGit{}
