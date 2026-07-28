@@ -1,0 +1,98 @@
+package health
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"github.com/novr/kusabi/internal/declaration"
+	"github.com/novr/kusabi/internal/git"
+	"github.com/novr/kusabi/internal/manifest"
+)
+
+// Check describes one doctor finding.
+type Check struct {
+	OK    bool
+	Label string
+	Detail string
+}
+
+// Doctor inspects workspace health without mutating repositories.
+func Doctor(f *manifest.File, g git.Runner) []Check {
+	rootDir := f.RootDir()
+	var checks []Check
+
+	if _, err := exec.LookPath("git"); err != nil {
+		checks = append(checks, Check{Label: "git command", Detail: "not found in PATH"})
+	} else {
+		checks = append(checks, Check{OK: true, Label: "git command"})
+	}
+
+	if f.Manifest.Context.Agents != "" {
+		agentsPath := filepath.Join(rootDir, f.Manifest.Context.Agents)
+		if _, err := os.Stat(agentsPath); err != nil {
+			checks = append(checks, Check{
+				Label:  "AGENTS.md",
+				Detail: fmt.Sprintf("not found at %s", agentsPath),
+			})
+		} else {
+			checks = append(checks, Check{OK: true, Label: "AGENTS.md"})
+		}
+	}
+
+	entries := declaration.GitignoreEntries(rootDir)
+	if len(entries) == 0 {
+		checks = append(checks, Check{
+			Label:  ".gitignore",
+			Detail: "kusabi managed block is missing (run `kusabi init` or `kusabi add`)",
+		})
+	} else {
+		checks = append(checks, Check{OK: true, Label: ".gitignore"})
+	}
+
+	for _, name := range f.Manifest.RepositoryNames() {
+		repo := f.Manifest.Repositories[name]
+		absPath := filepath.Join(rootDir, repo.Path)
+		if !g.IsRepo(absPath) {
+			checks = append(checks, Check{
+				Label:  fmt.Sprintf("[%s] cloned", name),
+				Detail: fmt.Sprintf("not found at %s (run `kusabi sync`)", repo.Path),
+			})
+		} else {
+			checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] cloned", name)})
+		}
+
+		entry := repo.Path + "/"
+		ignored := contains(entries, entry) || contains(entries, repo.Path)
+		if !ignored {
+			checks = append(checks, Check{
+				Label:  fmt.Sprintf("[%s] .gitignore", name),
+				Detail: fmt.Sprintf("%s not excluded in .gitignore", repo.Path),
+			})
+		} else {
+			checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] .gitignore", name)})
+		}
+	}
+
+	return checks
+}
+
+// HasIssues reports whether any check failed.
+func HasIssues(checks []Check) bool {
+	for _, c := range checks {
+		if !c.OK {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}

@@ -2,14 +2,13 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/novr/kusabi/internal/git"
+	"github.com/novr/kusabi/internal/health"
 	"github.com/novr/kusabi/internal/manifest"
 )
 
@@ -20,53 +19,34 @@ func newDoctorCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			manifestPath, err := manifest.Find(mustGetwd())
 			if err != nil {
-				check(false, "kusabi.yaml", err.Error())
-				return nil
+				printCheck(false, "kusabi.yaml", err.Error())
+				return fmt.Errorf("doctor found issues")
 			}
-			check(true, "kusabi.yaml", manifestPath)
+			printCheck(true, "kusabi.yaml", manifestPath)
 
-			m, err := manifest.Load(manifestPath)
+			f, err := manifest.Open(manifestPath)
 			if err != nil {
-				check(false, "kusabi.yaml parse", err.Error())
-				return nil
+				printCheck(false, "kusabi.yaml parse", err.Error())
+				return fmt.Errorf("doctor found issues")
 			}
 
-			rootDir := filepath.Dir(manifestPath)
+			g := &git.SystemGit{}
+			checks := health.Doctor(f, g)
 
-			// git in PATH
-			_, gitErr := exec.LookPath("git")
-			check(gitErr == nil, "git command", "not found in PATH")
-
-			// AGENTS.md
-			if m.Context.Agents != "" {
-				agentsPath := filepath.Join(rootDir, m.Context.Agents)
-				_, err := os.Stat(agentsPath)
-				check(err == nil, "AGENTS.md", fmt.Sprintf("not found at %s", agentsPath))
-			}
-
-			// .gitignore managed block
-			entries := gitignoreEntries(rootDir)
-			hasGitignore := len(entries) > 0
-			check(hasGitignore, ".gitignore", "kusabi managed block is missing (run `kusabi init` or `kusabi sync`)")
-
-			// Per-repository checks
 			fmt.Println()
-			for name, repo := range m.Repositories {
-				absPath := filepath.Join(rootDir, repo.Path)
-				_, err := os.Stat(filepath.Join(absPath, ".git"))
-				cloned := err == nil
-				check(cloned, fmt.Sprintf("[%s] cloned", name), fmt.Sprintf("not found at %s (run `kusabi sync`)", repo.Path))
+			for _, c := range checks {
+				printCheck(c.OK, c.Label, c.Detail)
+			}
 
-				entry := repo.Path + "/"
-				ignored := contains(entries, entry) || contains(entries, repo.Path)
-				check(ignored, fmt.Sprintf("[%s] .gitignore", name), fmt.Sprintf("%s not excluded in .gitignore", repo.Path))
+			if health.HasIssues(checks) {
+				return fmt.Errorf("doctor found issues")
 			}
 			return nil
 		},
 	}
 }
 
-func check(ok bool, label, detail string) {
+func printCheck(ok bool, label, detail string) {
 	okColor := color.New(color.FgGreen, color.Bold)
 	warnColor := color.New(color.FgRed, color.Bold)
 

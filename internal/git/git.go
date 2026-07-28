@@ -46,7 +46,6 @@ func (g *SystemGit) Pull(path string) error {
 func (g *SystemGit) Status(path string) (StatusResult, error) {
 	var result StatusResult
 
-	// Branch name — falls back to "(no commits)" on a freshly-init'd repo
 	out, err := output(path, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		result.Branch = "(no commits)"
@@ -54,7 +53,6 @@ func (g *SystemGit) Status(path string) (StatusResult, error) {
 		result.Branch = strings.TrimSpace(out)
 	}
 
-	// Ahead/behind upstream
 	abOut, err := output(path, "rev-list", "--count", "--left-right", "@{upstream}...HEAD")
 	if err == nil {
 		parts := strings.Fields(strings.TrimSpace(abOut))
@@ -64,7 +62,6 @@ func (g *SystemGit) Status(path string) (StatusResult, error) {
 		}
 	}
 
-	// Modified/untracked files
 	statusOut, err := output(path, "status", "--porcelain")
 	if err != nil {
 		return result, err
@@ -84,8 +81,35 @@ func (g *SystemGit) Status(path string) (StatusResult, error) {
 }
 
 func (g *SystemGit) IsRepo(path string) bool {
+	if _, err := output(path, "rev-parse", "--git-dir"); err == nil {
+		return true
+	}
+
 	dotGit := filepath.Join(path, ".git")
-	_, err := os.Stat(dotGit)
+	info, err := os.Stat(dotGit)
+	if err != nil {
+		return false
+	}
+	if info.IsDir() {
+		return true
+	}
+	if !info.Mode().IsRegular() {
+		return false
+	}
+
+	data, err := os.ReadFile(dotGit)
+	if err != nil {
+		return false
+	}
+	line := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(line, "gitdir: ") {
+		return false
+	}
+	gitdir := strings.TrimSpace(strings.TrimPrefix(line, "gitdir: "))
+	if !filepath.IsAbs(gitdir) {
+		gitdir = filepath.Join(path, gitdir)
+	}
+	_, err = os.Stat(gitdir)
 	return err == nil
 }
 

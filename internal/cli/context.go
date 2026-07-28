@@ -3,37 +3,31 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	kctx "github.com/novr/kusabi/internal/context"
-	"github.com/novr/kusabi/internal/manifest"
+	"github.com/novr/kusabi/internal/declaration"
 )
 
 func newContextCmd() *cobra.Command {
 	var (
-		tree    bool
-		asJSON  bool
+		tree   bool
+		asJSON bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "context",
 		Short: "Print AI context aggregated from all repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			manifestPath, err := manifest.Find(mustGetwd())
-			if err != nil {
-				return err
-			}
-			m, err := manifest.Load(manifestPath)
+			f, err := declaration.OpenWorkspace(mustGetwd())
 			if err != nil {
 				return err
 			}
 
-			rootDir := filepath.Dir(manifestPath)
 			b := &kctx.Builder{
-				Manifest:    m,
-				RootDir:     rootDir,
+				Manifest:    f.Manifest,
+				RootDir:     f.RootDir(),
 				IncludeTree: tree,
 			}
 

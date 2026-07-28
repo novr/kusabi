@@ -2,15 +2,13 @@ package cli
 
 import (
 	"fmt"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/novr/kusabi/internal/manifest"
-	"github.com/novr/kusabi/internal/runner"
+	"github.com/novr/kusabi/internal/action"
+	"github.com/novr/kusabi/internal/declaration"
 )
 
 func newExecCmd() *cobra.Command {
@@ -24,35 +22,23 @@ func newExecCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			command := args[0]
 
-			manifestPath, err := manifest.Find(mustGetwd())
-			if err != nil {
-				return err
-			}
-			m, err := manifest.Load(manifestPath)
+			f, err := declaration.OpenWorkspace(mustGetwd())
 			if err != nil {
 				return err
 			}
 
-			rootDir := filepath.Dir(manifestPath)
-			repos := m.FilterByTag(tag)
-
+			repos := f.Manifest.FilterByTag(tag)
 			if len(repos) == 0 {
 				return fmt.Errorf("no repositories matched (tag=%q)", tag)
 			}
 
-			results := runner.Run(repos, 0, func(name string, repo manifest.Repository) runner.Result {
-				absPath := filepath.Join(rootDir, repo.Path)
-				c := exec.Command("sh", "-c", command)
-				c.Dir = absPath
-				out, err := c.CombinedOutput()
-				return runner.Result{RepoName: name, Output: string(out), Err: err}
-			})
+			results := action.Exec(f.RootDir(), repos, command)
 
 			sep := color.New(color.FgCyan, color.Bold)
 			fail := color.New(color.FgRed)
 
 			for _, r := range results {
-				sep.Printf("\n=== %s ===\n", r.RepoName)
+				sep.Printf("\n=== %s ===\n", r.Name)
 				if r.Err != nil {
 					fail.Printf("error: %v\n", r.Err)
 				}
@@ -62,6 +48,9 @@ func newExecCmd() *cobra.Command {
 						fmt.Println()
 					}
 				}
+			}
+			if action.HasErrors(results) {
+				return fmt.Errorf("exec failed for one or more repositories")
 			}
 			return nil
 		},

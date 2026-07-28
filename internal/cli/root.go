@@ -6,16 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AppContext holds shared state injected via cobra command context.
-type AppContext struct {
-	ManifestPath string
-	RootDir      string
-}
-
 var rootCmd = &cobra.Command{
-	Use:   "kusabi",
-	Short: "AI-native metarepo connector for Git",
-	Long:  "Kusabi binds multiple Git repositories into a seamless, AI-native metarepo.",
+	Use:     "kusabi",
+	Aliases: []string{"ksb"},
+	Short:   "Bind multiple Git repositories and aggregate context for agents",
+	Long:    "Kusabi declares how repositories are bound, operates on them, and outputs their documents as observed context.",
 }
 
 // Execute is the entry point called from main.
