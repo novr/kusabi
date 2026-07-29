@@ -9,6 +9,7 @@ import (
 
 	"github.com/novr/kusabi/internal/declaration"
 	"github.com/novr/kusabi/internal/git"
+	"github.com/novr/kusabi/internal/giturl"
 	"github.com/novr/kusabi/internal/manifest"
 )
 
@@ -80,6 +81,24 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 				Label:  fmt.Sprintf("[%s] .gitignore", name),
 				Detail: fmt.Sprintf("%s not excluded in .gitignore", repo.Path),
 			})
+		}
+
+		// Remote URL check (only for cloned repos with a declared URL).
+		if g.IsRepo(absPath) && repo.URL != "" {
+			actual, err := g.RemoteURL(absPath, "origin")
+			if err != nil {
+				checks = append(checks, Check{
+					Label:  fmt.Sprintf("[%s] remote", name),
+					Detail: "no origin remote configured",
+				})
+			} else if !giturl.Equal(repo.URL, actual) {
+				checks = append(checks, Check{
+					Label:  fmt.Sprintf("[%s] remote", name),
+					Detail: fmt.Sprintf("declared %q but origin is %q (run `kusabi doctor --fix-remote`)", repo.URL, actual),
+				})
+			} else {
+				checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] remote", name)})
+			}
 		}
 	}
 
