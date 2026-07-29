@@ -18,10 +18,16 @@ type fakeGit struct {
 	currentBranchFunc  func(path string) (string, bool, error)
 	fetchCalls         []string
 	checkoutCalls      []string
+	pullFunc         func(path string) (bool, error)
 }
 
-func (f *fakeGit) Clone(url, path, branch string, depth int) error          { return nil }
-func (f *fakeGit) Pull(path string) error                                    { return nil }
+func (f *fakeGit) Clone(url, path, branch string, depth int) error { return nil }
+func (f *fakeGit) Pull(path string) (bool, error) {
+	if f.pullFunc != nil {
+		return f.pullFunc(path)
+	}
+	return true, nil
+}
 func (f *fakeGit) Fetch(path, branch string) error {
 	f.fetchCalls = append(f.fetchCalls, path+":"+branch)
 	return nil
@@ -196,5 +202,25 @@ func TestSync_DetachedHEADWithoutDeclaredBranch_Skips(t *testing.T) {
 	}
 	if !results[0].Skipped {
 		t.Fatalf("expected skip, got %q err=%v", results[0].Output, results[0].Err)
+	}
+}
+
+func TestSync_PullNoChange(t *testing.T) {
+	m := &manifest.Manifest{
+		Repositories: map[string]manifest.Repository{
+			"app": {Path: "pkg/app", URL: "https://example.com/app.git"},
+		},
+	}
+
+	g := &fakeGit{
+		repos: map[string]bool{"pkg/app": true},
+		pullFunc: func(path string) (bool, error) {
+			return false, nil
+		},
+	}
+
+	results := action.Sync("", m, 0, g, nil)
+	if results[0].Output != "updated: no change" {
+		t.Errorf("expected updated: no change, got %q", results[0].Output)
 	}
 }

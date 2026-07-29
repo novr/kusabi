@@ -12,7 +12,7 @@ import (
 // Runner abstracts git operations for testability.
 type Runner interface {
 	Clone(url, path, branch string, depth int) error
-	Pull(path string) error
+	Pull(path string) (changed bool, err error)
 	Fetch(path, branch string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
@@ -50,8 +50,12 @@ func (g *SystemGit) Clone(url, path, branch string, depth int) error {
 	return run("", args...)
 }
 
-func (g *SystemGit) Pull(path string) error {
-	return run(path, "pull", "--ff-only")
+func (g *SystemGit) Pull(path string) (bool, error) {
+	out, err := combinedOutput(path, "pull", "--ff-only")
+	if err != nil {
+		return false, fmt.Errorf("git pull --ff-only: %w\n%s", err, out)
+	}
+	return !strings.Contains(out, "Already up to date"), nil
 }
 
 func (g *SystemGit) Status(path string) (StatusResult, error) {
@@ -200,13 +204,18 @@ func (g *SystemGit) IsRepo(path string) bool {
 }
 
 func run(dir string, args ...string) error {
+	_, err := combinedOutput(dir, args...)
+	return err
+}
+
+func combinedOutput(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("git %s: %w\n%s", strings.Join(args, " "), err, out)
+		return string(out), fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 	}
-	return nil
+	return string(out), nil
 }
 
 func output(dir string, args ...string) (string, error) {

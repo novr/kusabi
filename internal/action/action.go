@@ -95,9 +95,14 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner, onProgr
 			}
 			out = switchMsg
 
-			opErr = g.Pull(absPath)
+			var changed bool
+			changed, opErr = g.Pull(absPath)
 			if opErr == nil {
-				out += "updated"
+				if changed {
+					out += "updated"
+				} else {
+					out += "updated: no change"
+				}
 			}
 		} else {
 			if opErr = os.MkdirAll(filepath.Dir(absPath), 0755); opErr == nil {
