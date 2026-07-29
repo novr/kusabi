@@ -24,12 +24,18 @@ type ContextConfig struct {
 }
 
 type Repository struct {
-	Path     string   `yaml:"path"`
-	URL      string   `yaml:"url"`
-	Role     string   `yaml:"role,omitempty"`
-	Tags     []string `yaml:"tags,omitempty"`
-	Includes []string `yaml:"includes,omitempty"`
-	Branch   string   `yaml:"branch,omitempty"`
+	Path        string   `yaml:"path"`
+	URL         string   `yaml:"url"`
+	Role        string   `yaml:"role,omitempty"`
+	Tags        []string `yaml:"tags,omitempty"`
+	Includes    []string `yaml:"includes,omitempty"`
+	Branch      string   `yaml:"branch,omitempty"`
+	SyncEnabled *bool    `yaml:"sync,omitempty"` // nil = enabled; *false = disabled
+}
+
+// IsSyncDisabled reports whether sync has been explicitly disabled for this repository.
+func (r Repository) IsSyncDisabled() bool {
+	return r.SyncEnabled != nil && !*r.SyncEnabled
 }
 
 // Find searches for kusabi.yaml by walking up from startDir.

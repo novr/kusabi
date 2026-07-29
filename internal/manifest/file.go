@@ -276,6 +276,11 @@ func updateRepoNode(node *yaml.Node, repo Repository) {
 	} else {
 		removeKey(node, "branch")
 	}
+	if repo.SyncEnabled != nil && !*repo.SyncEnabled {
+		setScalar(node, "sync", "false")
+	} else {
+		removeKey(node, "sync")
+	}
 }
 
 func buildDocumentNode(m *Manifest) *yaml.Node {

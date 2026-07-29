@@ -27,6 +27,10 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 		var out string
 		var opErr error
 
+		if repo.IsSyncDisabled() {
+			return runner.Result{RepoName: name, Output: "skipped: sync disabled", Skipped: true}
+		}
+
 		if g.IsRepo(absPath) {
 			// Skip gracefully on detached HEAD or dirty working tree.
 			if g.IsDetachedHEAD(absPath) {
