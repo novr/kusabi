@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync/atomic"
 
 	"github.com/novr/kusabi/internal/git"
 	"github.com/novr/kusabi/internal/manifest"
@@ -17,6 +18,15 @@ type RepoResult struct {
 	Output  string
 	Err     error
 	Skipped bool // true when the operation was skipped with a warning (not a failure)
+}
+
+// SyncProgress reports per-repository sync activity. Called from parallel goroutines.
+type SyncProgress struct {
+	Name    string
+	Total   int
+	Done    int // repositories finished so far, including this event when Started is false
+	Started bool
+	Result  RepoResult // set when Started is false
 }
 
 // StatusResult is the outcome of a status check on one repository.
@@ -35,8 +45,31 @@ type StatusResult struct {
 }
 
 // Sync clones missing repositories and pulls existing ones.
-func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoResult {
-	results := runner.Run(m.RepositoryNames(), m.Repositories, 0, func(name string, repo manifest.Repository) runner.Result {
+func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner, onProgress func(SyncProgress)) []RepoResult {
+	names := m.RepositoryNames()
+	total := len(names)
+
+	var hooks *runner.Hooks
+	if onProgress != nil {
+		var done atomic.Int32
+		hooks = &runner.Hooks{
+			OnStart: func(name string, _, _ int) {
+				onProgress(SyncProgress{Name: name, Total: total, Started: true})
+			},
+			OnDone: func(r runner.Result) {
+				n := int(done.Add(1))
+				onProgress(SyncProgress{
+					Name:    r.RepoName,
+					Total:   total,
+					Done:    n,
+					Started: false,
+					Result:  repoResultFromRunner(r),
+				})
+			},
+		}
+	}
+
+	results := runner.Run(names, m.Repositories, 0, hooks, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
 		var out string
 		var opErr error
@@ -152,7 +185,7 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 // Exec runs a shell command in each selected repository.
 // If skipUncloned is true, uncloned repositories are skipped (Skipped=true) rather than failing.
 func Exec(rootDir string, order []string, repos map[string]manifest.Repository, command string, skipUncloned bool, g git.Runner) []RepoResult {
-	results := runner.Run(order, repos, 0, func(name string, repo manifest.Repository) runner.Result {
+	results := runner.Run(order, repos, 0, nil, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
 		if !g.IsRepo(absPath) {
 			if skipUncloned {
@@ -224,7 +257,11 @@ func alignToDeclaredBranch(absPath, declared string, g git.Runner) (string, erro
 func toRepoResults(in []runner.Result) []RepoResult {
 	out := make([]RepoResult, len(in))
 	for i, r := range in {
-		out[i] = RepoResult{Name: r.RepoName, Output: r.Output, Err: r.Err, Skipped: r.Skipped}
+		out[i] = repoResultFromRunner(r)
 	}
 	return out
+}
+
+func repoResultFromRunner(r runner.Result) RepoResult {
+	return RepoResult{Name: r.RepoName, Output: r.Output, Err: r.Err, Skipped: r.Skipped}
 }

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -37,22 +38,36 @@ func newSyncCmd() *cobra.Command {
 			}
 
 			g := &git.SystemGit{}
-			results := action.Sync(f.RootDir(), f.Manifest, depth, g)
 
 			ok := color.New(color.FgGreen)
 			warn := color.New(color.FgYellow)
 			fail := color.New(color.FgRed)
 
-			for _, r := range results {
+			total := len(f.Manifest.Repositories)
+			fmt.Fprintf(os.Stderr, "Syncing %d repositories…\n", total)
+
+			var mu sync.Mutex
+			printResult := func(r action.RepoResult, done, total int) {
+				prefix := fmt.Sprintf("[%d/%d]", done, total)
 				switch {
 				case r.Err != nil:
-					fail.Printf("  ✗ %-20s %v\n", r.Name, r.Err)
+					fail.Printf("  ✗ %s %-20s %v\n", prefix, r.Name, r.Err)
 				case r.Skipped:
-					warn.Printf("  ⚠ %-20s %s\n", r.Name, r.Output)
+					warn.Printf("  ⚠ %s %-20s %s\n", prefix, r.Name, r.Output)
 				default:
-					ok.Printf("  ✓ %-20s %s\n", r.Name, r.Output)
+					ok.Printf("  ✓ %s %-20s %s\n", prefix, r.Name, r.Output)
 				}
 			}
+
+			results := action.Sync(f.RootDir(), f.Manifest, depth, g, func(p action.SyncProgress) {
+				mu.Lock()
+				defer mu.Unlock()
+				if p.Started {
+					fmt.Fprintf(os.Stderr, "  … %-20s\n", p.Name)
+					return
+				}
+				printResult(p.Result, p.Done, p.Total)
+			})
 			if action.HasErrors(results) {
 				return fmt.Errorf("sync failed for one or more repositories")
 			}

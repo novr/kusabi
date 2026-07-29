@@ -21,6 +21,13 @@ type Result struct {
 	Duration time.Duration
 }
 
+// Hooks are optional callbacks invoked during parallel execution.
+// OnStart and OnDone may run concurrently from multiple goroutines.
+type Hooks struct {
+	OnStart func(name string, index, total int)
+	OnDone  func(result Result)
+}
+
 func resolveOrder(order []string, repos map[string]manifest.Repository) []string {
 	if len(order) > 0 {
 		out := make([]string, 0, len(order))
@@ -43,6 +50,7 @@ func runParallel[T any](
 	order []string,
 	repos map[string]manifest.Repository,
 	maxConcurrency int,
+	hooks *Hooks,
 	fn func(name string, repo manifest.Repository) T,
 ) []T {
 	if maxConcurrency <= 0 {
@@ -67,7 +75,14 @@ func runParallel[T any](
 			defer wg.Done()
 			_ = sem.Acquire(ctx, 1)
 			defer sem.Release(1)
-			items[pos] = indexed{pos: pos, val: fn(n, repos[n])}
+			if hooks != nil && hooks.OnStart != nil {
+				hooks.OnStart(n, pos+1, len(names))
+			}
+			val := fn(n, repos[n])
+			if hooks != nil && hooks.OnDone != nil {
+				hooks.OnDone(toResult(val))
+			}
+			items[pos] = indexed{pos: pos, val: val}
 		}(i, name)
 	}
 
@@ -80,15 +95,23 @@ func runParallel[T any](
 	return out
 }
 
+func toResult[T any](v T) Result {
+	if r, ok := any(v).(Result); ok {
+		return r
+	}
+	return Result{}
+}
+
 // Run executes fn for each repository in parallel.
 // order selects which repos to run and in what sequence; pass nil to run all repos sorted by name.
 func Run(
 	order []string,
 	repos map[string]manifest.Repository,
 	maxConcurrency int,
+	hooks *Hooks,
 	fn func(name string, repo manifest.Repository) Result,
 ) []Result {
-	return runParallel(order, repos, maxConcurrency, fn)
+	return runParallel(order, repos, maxConcurrency, hooks, fn)
 }
 
 // RunTyped is like Run but the callback returns an arbitrary type T.
@@ -98,5 +121,5 @@ func RunTyped[T any](
 	maxConcurrency int,
 	fn func(name string, repo manifest.Repository) T,
 ) []T {
-	return runParallel(order, repos, maxConcurrency, fn)
+	return runParallel(order, repos, maxConcurrency, nil, fn)
 }
