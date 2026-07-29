@@ -158,9 +158,12 @@ func (g *SystemGit) Fetch(path, branch string) error {
 	return run(path, "fetch", "origin")
 }
 
-// CheckoutBranch runs git checkout <branch> in the given path.
+// CheckoutBranch checks out branch, creating a local branch from origin/branch when needed.
 func (g *SystemGit) CheckoutBranch(path, branch string) error {
-	return run(path, "checkout", branch)
+	if err := run(path, "checkout", branch); err == nil {
+		return nil
+	}
+	return run(path, "checkout", "-B", branch, "origin/"+branch)
 }
 
 func (g *SystemGit) IsRepo(path string) bool {

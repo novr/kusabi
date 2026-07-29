@@ -13,11 +13,24 @@ import (
 
 // RepoResult is the outcome of an operation on one repository.
 type RepoResult struct {
+	Name    string
+	Output  string
+	Err     error
+	Skipped bool // true when the operation was skipped with a warning (not a failure)
+}
+
+// StatusResult is the outcome of a status check on one repository.
+type StatusResult struct {
 	Name       string
 	Output     string
 	Err        error
-	Skipped    bool // true when the operation was skipped with a warning (not a failure)
-	IsWorktree bool // populated by Status; indicates a linked git worktree
+	IsWorktree bool
+	Branch     string
+	Ahead      int
+	Behind     int
+	Modified   int
+	Untracked  int
+	Cloned     bool
 }
 
 // Sync clones missing repositories and pulls existing ones.
@@ -66,17 +79,6 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 	return toRepoResults(results)
 }
 
-// StatusResult extends RepoResult with per-repo status details for JSON output.
-type StatusResult struct {
-	RepoResult
-	Branch    string
-	Ahead     int
-	Behind    int
-	Modified  int
-	Untracked int
-	Cloned    bool
-}
-
 // Status reports branch and working tree state for each repository.
 func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 	type enriched struct {
@@ -117,13 +119,19 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 		if s.Ahead > 0 || s.Behind > 0 {
 			r.output += fmt.Sprintf("  (↑%d ↓%d)", s.Ahead, s.Behind)
 		}
+		if r.isWorktree {
+			r.output += "  [worktree]"
+		}
 		return r
 	})
 
 	out := make([]StatusResult, len(raw))
 	for i, r := range raw {
 		out[i] = StatusResult{
-			RepoResult: RepoResult{Name: r.name, Output: r.output, Err: r.err, IsWorktree: r.isWorktree},
+			Name:       r.name,
+			Output:     r.output,
+			Err:        r.err,
+			IsWorktree: r.isWorktree,
 			Branch:     r.branch,
 			Ahead:      r.ahead,
 			Behind:     r.behind,

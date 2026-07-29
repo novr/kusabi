@@ -72,6 +72,9 @@ func TestStatus_IsWorktreePopulated(t *testing.T) {
 	if !byName["repo-a"].IsWorktree {
 		t.Error("expected repo-a to be flagged as worktree")
 	}
+	if !strings.Contains(byName["repo-a"].Output, "[worktree]") {
+		t.Errorf("expected worktree marker in output, got %q", byName["repo-a"].Output)
+	}
 	if byName["repo-b"].IsWorktree {
 		t.Error("expected repo-b to NOT be flagged as worktree")
 	}
@@ -101,14 +104,14 @@ func TestStatus_NotCloned(t *testing.T) {
 
 func TestHasStatusErrors(t *testing.T) {
 	withErr := []action.StatusResult{
-		{RepoResult: action.RepoResult{Name: "x", Err: errors.New("fail")}},
+		{Name: "x", Err: errors.New("fail")},
 	}
 	if !action.HasStatusErrors(withErr) {
 		t.Error("expected HasStatusErrors=true")
 	}
 
 	noErr := []action.StatusResult{
-		{RepoResult: action.RepoResult{Name: "x"}},
+		{Name: "x"},
 	}
 	if action.HasStatusErrors(noErr) {
 		t.Error("expected HasStatusErrors=false")

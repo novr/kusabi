@@ -169,3 +169,36 @@ func TestCheckoutBranch(t *testing.T) {
 		t.Errorf("expected 'main' after checkout, got %q", branch)
 	}
 }
+
+func TestCheckoutBranch_FromOriginTracking(t *testing.T) {
+	root := t.TempDir()
+	origin := filepath.Join(root, "origin.git")
+	mustRunGit(t, root, "init", "--bare", origin)
+
+	work := filepath.Join(root, "work")
+	mustRunGit(t, root, "clone", origin, work)
+	mustRunGit(t, work, "config", "user.email", "test@example.com")
+	mustRunGit(t, work, "config", "user.name", "Test")
+	mustRunGit(t, work, "config", "commit.gpgsign", "false")
+	mustRunGit(t, work, "commit", "--allow-empty", "-m", "init")
+	mustRunGit(t, work, "checkout", "-b", "develop")
+	mustRunGit(t, work, "commit", "--allow-empty", "-m", "develop")
+	mustRunGit(t, work, "push", "-u", "origin", "develop")
+	mustRunGit(t, work, "checkout", "main")
+	mustRunGit(t, work, "branch", "-D", "develop")
+
+	g := &git.SystemGit{}
+	if err := g.Fetch(work, "develop"); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.CheckoutBranch(work, "develop"); err != nil {
+		t.Fatal(err)
+	}
+	branch, detached, err := g.CurrentBranch(work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detached || branch != "develop" {
+		t.Fatalf("expected branch develop, got %q detached=%v", branch, detached)
+	}
+}
