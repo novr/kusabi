@@ -20,6 +20,7 @@ type Manifest struct {
 type ContextConfig struct {
 	Agents   string   `yaml:"agents,omitempty"`
 	Includes []string `yaml:"includes,omitempty"`
+	Paths    []string `yaml:"paths,omitempty"`
 }
 
 type Repository struct {

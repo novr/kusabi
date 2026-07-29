@@ -26,14 +26,16 @@ type JSONOutput struct {
 }
 
 type JSONMeta struct {
-	Name          string `json:"name"`
-	Description   string `json:"description,omitempty"`
-	AgentsContent string `json:"agents_content,omitempty"`
+	Name               string            `json:"name"`
+	Description        string            `json:"description,omitempty"`
+	AgentsContent      string            `json:"agents_content,omitempty"`
+	ParentContextFiles []JSONContextFile `json:"parent_context_files,omitempty"`
 }
 
 type JSONContextFile struct {
 	Path    string `json:"path"`
-	Content string `json:"content"`
+	Content string `json:"content,omitempty"`
+	Missing bool   `json:"missing,omitempty"`
 }
 
 type JSONRepo struct {
@@ -56,6 +58,18 @@ func (b *Builder) Build() (string, error) {
 		sb.WriteString("## Meta Architecture & Global Policy\n\n")
 		sb.WriteString(agentsContent)
 		sb.WriteString("\n---\n\n")
+	}
+
+	if parentFiles := b.readParentContextFiles(); len(parentFiles) > 0 {
+		sb.WriteString("## Parent Context Files\n\n")
+		for _, f := range parentFiles {
+			if f.Missing {
+				sb.WriteString(fmt.Sprintf("_(missing: %s)_\n\n", f.Path))
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("### %s\n\n%s\n\n", f.Path, f.Content))
+		}
+		sb.WriteString("---\n\n")
 	}
 
 	names := b.sortedNames()
@@ -116,9 +130,10 @@ func (b *Builder) BuildJSON() ([]byte, error) {
 	out := JSONOutput{
 		GeneratedAt: time.Now().UTC(),
 		Meta: JSONMeta{
-			Name:          b.Manifest.Name,
-			Description:   b.Manifest.Description,
-			AgentsContent: b.readAgents(),
+			Name:               b.Manifest.Name,
+			Description:        b.Manifest.Description,
+			AgentsContent:      b.readAgents(),
+			ParentContextFiles: b.readParentContextFiles(),
 		},
 	}
 
@@ -146,6 +161,25 @@ func (b *Builder) BuildJSON() ([]byte, error) {
 	}
 
 	return json.MarshalIndent(out, "", "  ")
+}
+
+// readParentContextFiles returns entries for context.paths. Unreadable paths are
+// reported as missing rather than omitted, so the declaration stays observable.
+func (b *Builder) readParentContextFiles() []JSONContextFile {
+	if len(b.Manifest.Context.Paths) == 0 {
+		return nil
+	}
+	var out []JSONContextFile
+	for _, p := range b.Manifest.Context.Paths {
+		absPath := filepath.Join(b.RootDir, p)
+		data, err := os.ReadFile(absPath)
+		if err != nil {
+			out = append(out, JSONContextFile{Path: p, Missing: true})
+			continue
+		}
+		out = append(out, JSONContextFile{Path: p, Content: string(data)})
+	}
+	return out
 }
 
 func (b *Builder) readAgents() string {
