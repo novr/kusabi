@@ -84,6 +84,28 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 			})
 		}
 
+		if repo.Branch != "" && g.IsRepo(absPath) {
+			current, detached, err := g.CurrentBranch(absPath)
+			if err != nil {
+				checks = append(checks, Check{
+					Label:  fmt.Sprintf("[%s] branch", name),
+					Detail: fmt.Sprintf("could not determine current branch: %v", err),
+				})
+			} else if detached {
+				checks = append(checks, Check{
+					Label:  fmt.Sprintf("[%s] branch", name),
+					Detail: fmt.Sprintf("detached HEAD (declared: %s)", repo.Branch),
+				})
+			} else if current != repo.Branch {
+				checks = append(checks, Check{
+					Label:  fmt.Sprintf("[%s] branch", name),
+					Detail: fmt.Sprintf("%q (declared: %q — run `kusabi sync`)", current, repo.Branch),
+				})
+			} else {
+				checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] branch", name)})
+			}
+		}
+
 		entry := repo.Path + "/"
 		inManagedBlock := slices.Contains(entries, entry) || slices.Contains(entries, repo.Path)
 		if inManagedBlock {

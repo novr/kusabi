@@ -13,6 +13,7 @@ import (
 type Runner interface {
 	Clone(url, path, branch string, depth int) error
 	Pull(path string) error
+	Fetch(path, branch string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
 	IsWorktree(path string) bool
@@ -20,6 +21,8 @@ type Runner interface {
 	IsDirty(path string) (bool, error)
 	RemoteURL(path, remote string) (string, error)
 	SetRemoteURL(path, remote, url string) error
+	CurrentBranch(path string) (branch string, detached bool, err error)
+	CheckoutBranch(path, branch string) error
 }
 
 type StatusResult struct {
@@ -134,6 +137,30 @@ func (g *SystemGit) RemoteURL(path, remote string) (string, error) {
 // SetRemoteURL updates the URL for the named remote.
 func (g *SystemGit) SetRemoteURL(path, remote, url string) error {
 	return run(path, "remote", "set-url", remote, url)
+}
+
+// CurrentBranch returns the current branch name and whether HEAD is detached.
+func (g *SystemGit) CurrentBranch(path string) (string, bool, error) {
+	out, err := output(path, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", false, err
+	}
+	name := strings.TrimSpace(out)
+	return name, name == "HEAD", nil
+}
+
+// Fetch fetches a specific branch from origin to ensure local remote-tracking refs are current.
+// If branch is empty, fetches all refs.
+func (g *SystemGit) Fetch(path, branch string) error {
+	if branch != "" {
+		return run(path, "fetch", "origin", branch)
+	}
+	return run(path, "fetch", "origin")
+}
+
+// CheckoutBranch runs git checkout <branch> in the given path.
+func (g *SystemGit) CheckoutBranch(path, branch string) error {
+	return run(path, "checkout", branch)
 }
 
 func (g *SystemGit) IsRepo(path string) bool {
