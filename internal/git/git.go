@@ -17,6 +17,8 @@ type Runner interface {
 	IsRepo(path string) bool
 	IsDetachedHEAD(path string) bool
 	IsDirty(path string) (bool, error)
+	CurrentBranch(path string) (branch string, detached bool, err error)
+	CheckoutBranch(path, branch string) error
 }
 
 type StatusResult struct {
@@ -99,6 +101,21 @@ func (g *SystemGit) IsDirty(path string) (bool, error) {
 		return false, err
 	}
 	return strings.TrimSpace(out) != "", nil
+}
+
+// CurrentBranch returns the current branch name and whether HEAD is detached.
+func (g *SystemGit) CurrentBranch(path string) (string, bool, error) {
+	out, err := output(path, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", false, err
+	}
+	name := strings.TrimSpace(out)
+	return name, name == "HEAD", nil
+}
+
+// CheckoutBranch runs git checkout <branch> in the given path.
+func (g *SystemGit) CheckoutBranch(path, branch string) error {
+	return run(path, "checkout", branch)
 }
 
 func (g *SystemGit) IsRepo(path string) bool {
