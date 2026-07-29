@@ -193,7 +193,7 @@ func syncToNode(m *Manifest, doc *yaml.Node) {
 
 func syncContextNode(cfg ContextConfig, root *yaml.Node) {
 	ctx := mappingValue(root, "context")
-	if cfg.Agents == "" && len(cfg.Includes) == 0 {
+	if cfg.Agents == "" && len(cfg.Includes) == 0 && len(cfg.Paths) == 0 {
 		removeKey(root, "context")
 		return
 	}
@@ -207,6 +207,11 @@ func syncContextNode(cfg ContextConfig, root *yaml.Node) {
 		removeKey(ctx, "agents")
 	}
 	syncSequence(ctx, "includes", cfg.Includes)
+	if len(cfg.Paths) > 0 {
+		syncSequence(ctx, "paths", cfg.Paths)
+	} else {
+		removeKey(ctx, "paths")
+	}
 }
 
 func syncRepositoriesNode(m *Manifest, root *yaml.Node) {
@@ -266,12 +271,15 @@ func buildDocumentNode(m *Manifest) *yaml.Node {
 	if m.Description != "" {
 		setScalar(root, "description", m.Description)
 	}
-	if m.Context.Agents != "" || len(m.Context.Includes) > 0 {
+	if m.Context.Agents != "" || len(m.Context.Includes) > 0 || len(m.Context.Paths) > 0 {
 		ctx := &yaml.Node{Kind: yaml.MappingNode}
 		if m.Context.Agents != "" {
 			setScalar(ctx, "agents", m.Context.Agents)
 		}
 		syncSequence(ctx, "includes", m.Context.Includes)
+		if len(m.Context.Paths) > 0 {
+			syncSequence(ctx, "paths", m.Context.Paths)
+		}
 		setMappingValue(root, "context", ctx)
 	}
 	syncRepositoriesNode(m, root)

@@ -47,7 +47,8 @@ description: "Cross-platform ecosystem bound by Kusabi."
 context:
   agents: "./AGENTS.md"
   paths:
-    - "docs/ADR.md"
+    - "team-knowledge/ADR.md"
+    - ".agents/skills/deploy.md"
   includes:
     - "README.md"
     - "CLAUDE.md"

@@ -140,3 +140,70 @@ repositories:
 		t.Fatalf("order not preserved: %v", reopened.Manifest.RepositoryOrder)
 	}
 }
+
+func TestSave_PreservesContextPaths(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+
+	initial := `version: "1"
+name: test
+context:
+  agents: ./AGENTS.md
+  paths:
+    - team-knowledge/ADR.md
+repositories:
+  app:
+    path: packages/app
+    url: git@example.com/app.git
+`
+	if err := os.WriteFile(path, []byte(initial), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := manifest.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := f.Manifest.Repositories["app"]
+	repo.Role = "App"
+	f.Manifest.Repositories["app"] = repo
+	if err := f.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded, err := manifest.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.Manifest.Context.Paths) != 1 || reloaded.Manifest.Context.Paths[0] != "team-knowledge/ADR.md" {
+		t.Fatalf("context.paths not preserved: %#v", reloaded.Manifest.Context.Paths)
+	}
+}
+
+func TestSave_NewManifestWritesContextPaths(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Paths: []string{"team-knowledge/ADR.md"},
+		},
+		Repositories: map[string]manifest.Repository{
+			"app": {Path: "packages/app", URL: "git@example.com/app.git"},
+		},
+		RepositoryOrder: []string{"app"},
+	}
+	if err := manifest.Save(m, path); err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded, err := manifest.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.Manifest.Context.Paths) != 1 || reloaded.Manifest.Context.Paths[0] != "team-knowledge/ADR.md" {
+		t.Fatalf("context.paths not written: %#v", reloaded.Manifest.Context.Paths)
+	}
+}

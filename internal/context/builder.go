@@ -26,13 +26,19 @@ type JSONOutput struct {
 }
 
 type JSONMeta struct {
-	Name               string            `json:"name"`
-	Description        string            `json:"description,omitempty"`
-	AgentsContent      string            `json:"agents_content,omitempty"`
-	ParentContextFiles []JSONContextFile `json:"parent_context_files,omitempty"`
+	Name               string           `json:"name"`
+	Description        string           `json:"description,omitempty"`
+	AgentsContent      string           `json:"agents_content,omitempty"`
+	ParentContextFiles []JSONParentFile `json:"parent_context_files,omitempty"`
 }
 
 type JSONContextFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+// JSONParentFile is one context.paths entry. Missing is set when the path cannot be read.
+type JSONParentFile struct {
 	Path    string `json:"path"`
 	Content string `json:"content,omitempty"`
 	Missing bool   `json:"missing,omitempty"`
@@ -163,23 +169,39 @@ func (b *Builder) BuildJSON() ([]byte, error) {
 	return json.MarshalIndent(out, "", "  ")
 }
 
-// readParentContextFiles returns entries for context.paths. Unreadable paths are
-// reported as missing rather than omitted, so the declaration stays observable.
-func (b *Builder) readParentContextFiles() []JSONContextFile {
+func (b *Builder) readParentContextFiles() []JSONParentFile {
 	if len(b.Manifest.Context.Paths) == 0 {
 		return nil
 	}
-	var out []JSONContextFile
+	var out []JSONParentFile
 	for _, p := range b.Manifest.Context.Paths {
-		absPath := filepath.Join(b.RootDir, p)
-		data, err := os.ReadFile(absPath)
-		if err != nil {
-			out = append(out, JSONContextFile{Path: p, Missing: true})
+		absPath, ok := b.resolveUnderRoot(p)
+		if !ok {
+			out = append(out, JSONParentFile{Path: p, Missing: true})
 			continue
 		}
-		out = append(out, JSONContextFile{Path: p, Content: string(data)})
+		data, err := os.ReadFile(absPath)
+		if err != nil {
+			out = append(out, JSONParentFile{Path: p, Missing: true})
+			continue
+		}
+		out = append(out, JSONParentFile{Path: p, Content: string(data)})
 	}
 	return out
+}
+
+// resolveUnderRoot joins rel to RootDir only when it stays inside the workspace.
+// Absolute paths and ".." escapes are rejected (filepath.Join would otherwise ignore RootDir).
+func (b *Builder) resolveUnderRoot(rel string) (string, bool) {
+	if err := manifest.ValidateRepoPath(rel); err != nil {
+		return "", false
+	}
+	root := filepath.Clean(b.RootDir)
+	abs := filepath.Join(root, filepath.Clean(rel))
+	if abs != root && !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+		return "", false
+	}
+	return abs, true
 }
 
 func (b *Builder) readAgents() string {

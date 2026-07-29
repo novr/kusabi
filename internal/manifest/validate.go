@@ -15,6 +15,12 @@ func Validate(m *Manifest) error {
 		return fmt.Errorf("name is required")
 	}
 
+	for i, p := range m.Context.Paths {
+		if err := ValidateRepoPath(p); err != nil {
+			return fmt.Errorf("context.paths[%d]: %w", i, err)
+		}
+	}
+
 	seenPaths := make(map[string]string, len(m.Repositories))
 	for name, repo := range m.Repositories {
 		if err := ValidateRepoName(name); err != nil {
