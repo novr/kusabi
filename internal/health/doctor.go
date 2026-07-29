@@ -57,10 +57,20 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 		repo := f.Manifest.Repositories[name]
 		absPath := filepath.Join(rootDir, repo.Path)
 		if !g.IsRepo(absPath) {
-			checks = append(checks, Check{
-				Label:  fmt.Sprintf("[%s] cloned", name),
-				Detail: fmt.Sprintf("not found at %s (run `kusabi sync`)", repo.Path),
-			})
+			if repo.IsSyncDisabled() {
+				// Uncloned + sync disabled: informational, not a failure.
+				checks = append(checks, Check{
+					OK:     true,
+					Label:  fmt.Sprintf("[%s] cloned", name),
+					Detail: "not cloned (sync disabled — clone manually if needed)",
+					Warn:   true,
+				})
+			} else {
+				checks = append(checks, Check{
+					Label:  fmt.Sprintf("[%s] cloned", name),
+					Detail: fmt.Sprintf("not found at %s (run `kusabi sync`)", repo.Path),
+				})
+			}
 		} else {
 			checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] cloned", name)})
 		}
