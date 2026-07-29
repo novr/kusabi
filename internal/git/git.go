@@ -15,6 +15,8 @@ type Runner interface {
 	Pull(path string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
+	IsDetachedHEAD(path string) bool
+	IsDirty(path string) (bool, error)
 }
 
 type StatusResult struct {
@@ -78,6 +80,22 @@ func (g *SystemGit) Status(path string) (StatusResult, error) {
 	}
 
 	return result, nil
+}
+
+func (g *SystemGit) IsDetachedHEAD(path string) bool {
+	out, err := output(path, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(out) == "HEAD"
+}
+
+func (g *SystemGit) IsDirty(path string) (bool, error) {
+	out, err := output(path, "status", "--porcelain")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(out) != "", nil
 }
 
 func (g *SystemGit) IsRepo(path string) bool {

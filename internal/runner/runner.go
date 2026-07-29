@@ -17,6 +17,7 @@ type Result struct {
 	RepoName string
 	Output   string
 	Err      error
+	Skipped  bool // true when the operation was gracefully skipped (not a failure)
 	Duration time.Duration
 }
 

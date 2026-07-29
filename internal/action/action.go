@@ -13,9 +13,10 @@ import (
 
 // RepoResult is the outcome of an operation on one repository.
 type RepoResult struct {
-	Name   string
-	Output string
-	Err    error
+	Name    string
+	Output  string
+	Err     error
+	Skipped bool // true when the operation was skipped with a warning (not a failure)
 }
 
 // Sync clones missing repositories and pulls existing ones.
@@ -26,6 +27,13 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 		var opErr error
 
 		if g.IsRepo(absPath) {
+			// Skip gracefully on detached HEAD or dirty working tree.
+			if g.IsDetachedHEAD(absPath) {
+				return runner.Result{RepoName: name, Output: "skipped: detached HEAD", Skipped: true}
+			}
+			if dirty, err := g.IsDirty(absPath); err == nil && dirty {
+				return runner.Result{RepoName: name, Output: "skipped: dirty working tree", Skipped: true}
+			}
 			opErr = g.Pull(absPath)
 			if opErr == nil {
 				out = "updated"
@@ -91,7 +99,7 @@ func HasErrors(results []RepoResult) bool {
 func toRepoResults(in []runner.Result) []RepoResult {
 	out := make([]RepoResult, len(in))
 	for i, r := range in {
-		out[i] = RepoResult{Name: r.RepoName, Output: r.Output, Err: r.Err}
+		out[i] = RepoResult{Name: r.RepoName, Output: r.Output, Err: r.Err, Skipped: r.Skipped}
 	}
 	return out
 }
