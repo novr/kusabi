@@ -14,8 +14,9 @@ import (
 
 // Check describes one doctor finding.
 type Check struct {
-	OK    bool
-	Label string
+	OK     bool
+	Warn   bool   // true means warning (not a failure)
+	Label  string
 	Detail string
 }
 
@@ -65,24 +66,30 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 		}
 
 		entry := repo.Path + "/"
-		ignored := slices.Contains(entries, entry) || slices.Contains(entries, repo.Path)
-		if !ignored {
+		inManagedBlock := slices.Contains(entries, entry) || slices.Contains(entries, repo.Path)
+		if inManagedBlock {
+			checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] .gitignore", name)})
+		} else if declaration.IsExcludedInFullGitignore(rootDir, repo.Path) {
+			checks = append(checks, Check{
+				Label:  fmt.Sprintf("[%s] .gitignore", name),
+				Detail: fmt.Sprintf("%s is manually excluded but not in kusabi managed block (run `kusabi doctor --migrate-gitignore`)", repo.Path),
+				Warn:   true,
+			})
+		} else {
 			checks = append(checks, Check{
 				Label:  fmt.Sprintf("[%s] .gitignore", name),
 				Detail: fmt.Sprintf("%s not excluded in .gitignore", repo.Path),
 			})
-		} else {
-			checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] .gitignore", name)})
 		}
 	}
 
 	return checks
 }
 
-// HasIssues reports whether any check failed.
+// HasIssues reports whether any check failed (warnings do not count as failures).
 func HasIssues(checks []Check) bool {
 	for _, c := range checks {
-		if !c.OK {
+		if !c.OK && !c.Warn {
 			return true
 		}
 	}
