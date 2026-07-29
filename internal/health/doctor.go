@@ -66,6 +66,14 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 			checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] cloned", name)})
 		}
 
+		if repo.IsSyncDisabled() {
+			checks = append(checks, Check{
+				OK:     true,
+				Label:  fmt.Sprintf("[%s] sync", name),
+				Detail: "disabled",
+			})
+		}
+
 		entry := repo.Path + "/"
 		inManagedBlock := slices.Contains(entries, entry) || slices.Contains(entries, repo.Path)
 		if inManagedBlock {

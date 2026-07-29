@@ -104,6 +104,54 @@ func TestBranchField_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestSyncDisabled_IsSyncDisabled(t *testing.T) {
+	f := false
+	tr := true
+
+	rDisabled := manifest.Repository{SyncEnabled: &f}
+	rEnabled := manifest.Repository{SyncEnabled: &tr}
+	rDefault := manifest.Repository{}
+
+	if !rDisabled.IsSyncDisabled() {
+		t.Error("expected IsSyncDisabled=true for SyncEnabled=false")
+	}
+	if rEnabled.IsSyncDisabled() {
+		t.Error("expected IsSyncDisabled=false for SyncEnabled=true")
+	}
+	if rDefault.IsSyncDisabled() {
+		t.Error("expected IsSyncDisabled=false for nil SyncEnabled")
+	}
+}
+
+func TestSyncDisabled_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+
+	f := false
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Repositories: map[string]manifest.Repository{
+			"disabled": {Path: "pkg/d", URL: "https://example.com/d.git", SyncEnabled: &f},
+			"enabled":  {Path: "pkg/e", URL: "https://example.com/e.git"},
+		},
+	}
+
+	if err := manifest.Save(m, path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := manifest.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.Repositories["disabled"].IsSyncDisabled() {
+		t.Error("expected disabled repo to have sync: false after round-trip")
+	}
+	if loaded.Repositories["enabled"].IsSyncDisabled() {
+		t.Error("expected enabled repo to NOT have sync: false after round-trip")
+	}
+}
+
 func TestFilterByTag(t *testing.T) {
 	m := &manifest.Manifest{
 		Repositories: map[string]manifest.Repository{
