@@ -16,10 +16,14 @@ type fakeGit struct {
 	statusFunc func(path string) (git.StatusResult, error)
 }
 
-func (f *fakeGit) Clone(url, path string, depth int) error { return nil }
-func (f *fakeGit) Pull(path string) error                  { return nil }
-func (f *fakeGit) IsRepo(path string) bool                 { return f.repos[path] }
-func (f *fakeGit) IsWorktree(path string) bool             { return f.worktrees[path] }
+func (f *fakeGit) Clone(url, path, branch string, depth int) error { return nil }
+func (f *fakeGit) Pull(path string) error                          { return nil }
+func (f *fakeGit) IsRepo(path string) bool                         { return f.repos[path] }
+func (f *fakeGit) IsWorktree(path string) bool                     { return f.worktrees[path] }
+func (f *fakeGit) IsDetachedHEAD(path string) bool                 { return false }
+func (f *fakeGit) IsDirty(path string) (bool, error)               { return false, nil }
+func (f *fakeGit) RemoteURL(path, remote string) (string, error)   { return "", nil }
+func (f *fakeGit) SetRemoteURL(path, remote, url string) error     { return nil }
 func (f *fakeGit) Status(path string) (git.StatusResult, error) {
 	if f.statusFunc != nil {
 		return f.statusFunc(path)
