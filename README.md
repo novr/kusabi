@@ -13,7 +13,7 @@ brew tap novr/taps
 brew install kusabi
 ```
 
-`kusabi` が入る。リリース tarball には `ksb` / `git-kusabi` も同梱される（Formula の `install` は初回作成後に tap 側で3バイナリへ拡張可能）。
+`kusabi` が入る（`ksb` / `git-kusabi` は同一バイナリへの symlink）。リリース tarball は `kusabi` のみ同梱。
 
 ### Go install
 

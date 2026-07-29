@@ -70,7 +70,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build universal release binaries
+      - name: Build universal release binary
         shell: bash
         run: |
           set -euo pipefail
@@ -78,13 +78,11 @@ jobs:
           LDFLAGS="-s -w -X github.com/novr/kusabi/internal/version.Version=${VERSION}"
 
           mkdir -p dist
-          for cmd in kusabi ksb git-kusabi; do
-            GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o "dist/${cmd}-arm64" "./cmd/${cmd}"
-            GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o "dist/${cmd}-amd64" "./cmd/${cmd}"
-            lipo -create -output "dist/${cmd}" "dist/${cmd}-arm64" "dist/${cmd}-amd64"
-            lipo -info "dist/${cmd}" | grep -q 'Architectures in the fat file:.*arm64'
-            lipo -info "dist/${cmd}" | grep -q 'Architectures in the fat file:.*x86_64'
-          done
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o "dist/kusabi-arm64" "./cmd/kusabi"
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o "dist/kusabi-amd64" "./cmd/kusabi"
+          lipo -create -output "dist/kusabi" "dist/kusabi-arm64" "dist/kusabi-amd64"
+          lipo -info "dist/kusabi" | grep -q 'Architectures in the fat file:.*arm64'
+          lipo -info "dist/kusabi" | grep -q 'Architectures in the fat file:.*x86_64'
 
       - name: Package release asset
         id: package
@@ -95,7 +93,7 @@ jobs:
           TAG="${{ needs.prepare.outputs.tag }}"
           ASSET="kusabi_${VERSION}_darwin.tar.gz"
 
-          tar -C dist -czf "${ASSET}" kusabi ksb git-kusabi
+          tar -C dist -czf "${ASSET}" kusabi
           SHA256="$(shasum -a 256 "${ASSET}" | cut -d' ' -f1)"
           echo "${SHA256} ${ASSET}" > checksums.txt
           {
