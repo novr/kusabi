@@ -104,6 +104,32 @@ func TestBranchField_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestFilterByNames(t *testing.T) {
+	m := &manifest.Manifest{
+		Repositories: map[string]manifest.Repository{
+			"alpha": {Path: "pkg/alpha", URL: "https://example.com/alpha"},
+			"beta":  {Path: "pkg/beta", URL: "https://example.com/beta"},
+			"gamma": {Path: "pkg/gamma", URL: "https://example.com/gamma"},
+		},
+	}
+
+	result, err := m.FilterByNames([]string{"alpha", "gamma"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 2 {
+		t.Errorf("got %d repos, want 2", len(result))
+	}
+	if _, ok := result["beta"]; ok {
+		t.Error("beta should not be included")
+	}
+
+	_, err = m.FilterByNames([]string{"nonexistent"})
+	if err == nil {
+		t.Error("expected error for unknown repository name")
+	}
+}
+
 func TestFilterByTag(t *testing.T) {
 	m := &manifest.Manifest{
 		Repositories: map[string]manifest.Repository{

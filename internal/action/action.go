@@ -72,10 +72,14 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []RepoResult {
 }
 
 // Exec runs a shell command in each selected repository.
-func Exec(rootDir string, repos map[string]manifest.Repository, command string, g git.Runner) []RepoResult {
+// If skipUncloned is true, uncloned repositories are skipped (Skipped=true) rather than failing.
+func Exec(rootDir string, repos map[string]manifest.Repository, command string, skipUncloned bool, g git.Runner) []RepoResult {
 	results := runner.Run(repos, 0, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
 		if !g.IsRepo(absPath) {
+			if skipUncloned {
+				return runner.Result{RepoName: name, Output: "skipped (not cloned)", Skipped: true}
+			}
 			return runner.Result{RepoName: name, Err: fmt.Errorf("not cloned — run `kusabi sync` first")}
 		}
 		c := exec.Command("sh", "-c", command)
