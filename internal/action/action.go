@@ -32,7 +32,7 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 			}
 		} else {
 			if opErr = os.MkdirAll(filepath.Dir(absPath), 0755); opErr == nil {
-				opErr = g.Clone(repo.URL, absPath, depth)
+				opErr = g.Clone(repo.URL, absPath, repo.Branch, depth)
 				if opErr == nil {
 					out = "cloned"
 				}

@@ -29,6 +29,7 @@ type Repository struct {
 	Role     string   `yaml:"role,omitempty"`
 	Tags     []string `yaml:"tags,omitempty"`
 	Includes []string `yaml:"includes,omitempty"`
+	Branch   string   `yaml:"branch,omitempty"`
 }
 
 // Find searches for kusabi.yaml by walking up from startDir.

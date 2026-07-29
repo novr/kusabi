@@ -11,9 +11,10 @@ import (
 
 func newAddCmd() *cobra.Command {
 	var (
-		path string
-		role string
-		tags []string
+		path   string
+		role   string
+		tags   []string
+		branch string
 	)
 
 	cmd := &cobra.Command{
@@ -29,9 +30,10 @@ func newAddCmd() *cobra.Command {
 			}
 
 			if err := declaration.AddRepo(f, name, url, declaration.AddRepoOptions{
-				Path: path,
-				Role: role,
-				Tags: tags,
+				Path:   path,
+				Role:   role,
+				Tags:   tags,
+				Branch: branch,
 			}); err != nil {
 				return err
 			}
@@ -43,6 +45,7 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&path, "path", "", "Local path relative to kusabi.yaml (default: packages/<name>)")
 	cmd.Flags().StringVar(&role, "role", "", "Role description for AI context")
 	cmd.Flags().StringSliceVar(&tags, "tags", nil, "Comma-separated tags (e.g. frontend,ios)")
+	cmd.Flags().StringVar(&branch, "branch", "", "Branch to clone and track (default: remote default branch)")
 	return cmd
 }
 
