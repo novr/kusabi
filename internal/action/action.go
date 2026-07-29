@@ -49,14 +49,19 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 					return runner.Result{RepoName: name, Err: err}
 				}
 				if current != repo.Branch {
+					// Fetch before checkout so DWIM can resolve remote-tracking refs.
+					if opErr = g.Fetch(absPath, repo.Branch); opErr != nil {
+						return runner.Result{RepoName: name, Err: opErr}
+					}
 					if opErr = g.CheckoutBranch(absPath, repo.Branch); opErr != nil {
 						return runner.Result{RepoName: name, Err: opErr}
 					}
+					out = fmt.Sprintf("switched %s→%s, ", current, repo.Branch)
 				}
 			}
 			opErr = g.Pull(absPath)
 			if opErr == nil {
-				out = "updated"
+				out += "updated"
 			}
 		} else {
 			if opErr = os.MkdirAll(filepath.Dir(absPath), 0755); opErr == nil {

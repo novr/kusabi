@@ -13,6 +13,7 @@ import (
 type Runner interface {
 	Clone(url, path, branch string, depth int) error
 	Pull(path string) error
+	Fetch(path, branch string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
 	IsWorktree(path string) bool
@@ -146,6 +147,15 @@ func (g *SystemGit) CurrentBranch(path string) (string, bool, error) {
 	}
 	name := strings.TrimSpace(out)
 	return name, name == "HEAD", nil
+}
+
+// Fetch fetches a specific branch from origin to ensure local remote-tracking refs are current.
+// If branch is empty, fetches all refs.
+func (g *SystemGit) Fetch(path, branch string) error {
+	if branch != "" {
+		return run(path, "fetch", "origin", branch)
+	}
+	return run(path, "fetch", "origin")
 }
 
 // CheckoutBranch runs git checkout <branch> in the given path.
