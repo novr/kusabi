@@ -43,6 +43,17 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 			if dirty {
 				return runner.Result{RepoName: name, Output: "skipped: dirty working tree", Skipped: true}
 			}
+			if repo.Branch != "" {
+				current, _, err := g.CurrentBranch(absPath)
+				if err != nil {
+					return runner.Result{RepoName: name, Err: err}
+				}
+				if current != repo.Branch {
+					if opErr = g.CheckoutBranch(absPath, repo.Branch); opErr != nil {
+						return runner.Result{RepoName: name, Err: opErr}
+					}
+				}
+			}
 			opErr = g.Pull(absPath)
 			if opErr == nil {
 				out = "updated"

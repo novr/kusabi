@@ -20,6 +20,8 @@ type Runner interface {
 	IsDirty(path string) (bool, error)
 	RemoteURL(path, remote string) (string, error)
 	SetRemoteURL(path, remote, url string) error
+	CurrentBranch(path string) (branch string, detached bool, err error)
+	CheckoutBranch(path, branch string) error
 }
 
 type StatusResult struct {
@@ -134,6 +136,21 @@ func (g *SystemGit) RemoteURL(path, remote string) (string, error) {
 // SetRemoteURL updates the URL for the named remote.
 func (g *SystemGit) SetRemoteURL(path, remote, url string) error {
 	return run(path, "remote", "set-url", remote, url)
+}
+
+// CurrentBranch returns the current branch name and whether HEAD is detached.
+func (g *SystemGit) CurrentBranch(path string) (string, bool, error) {
+	out, err := output(path, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", false, err
+	}
+	name := strings.TrimSpace(out)
+	return name, name == "HEAD", nil
+}
+
+// CheckoutBranch runs git checkout <branch> in the given path.
+func (g *SystemGit) CheckoutBranch(path, branch string) error {
+	return run(path, "checkout", branch)
 }
 
 func (g *SystemGit) IsRepo(path string) bool {
