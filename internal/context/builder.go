@@ -83,7 +83,7 @@ func (b *Builder) Build() (string, error) {
 			sb.WriteString(fmt.Sprintf("> Role: %s\n\n", repo.Role))
 		}
 
-		files := b.readContextFiles(absPath)
+		files := b.readContextFiles(absPath, repo)
 		if len(files) == 0 {
 			sb.WriteString("_(no context files found for configured includes)_\n\n")
 		} else {
@@ -125,7 +125,7 @@ func (b *Builder) BuildJSON() ([]byte, error) {
 	for _, name := range b.sortedNames() {
 		repo := b.Manifest.Repositories[name]
 		absPath := filepath.Join(b.RootDir, repo.Path)
-		files := b.readContextFiles(absPath)
+		files := b.readContextFiles(absPath, repo)
 
 		jr := JSONRepo{
 			Name: name,
@@ -165,8 +165,12 @@ type contextFile struct {
 	Content string
 }
 
-func (b *Builder) readContextFiles(repoPath string) []contextFile {
-	includes := b.Manifest.Context.Includes
+func (b *Builder) readContextFiles(repoPath string, repo manifest.Repository) []contextFile {
+	// Per-repo includes take precedence; fall back to global, then defaults.
+	includes := repo.Includes
+	if len(includes) == 0 {
+		includes = b.Manifest.Context.Includes
+	}
 	if len(includes) == 0 {
 		includes = []string{"README.md", "CLAUDE.md"}
 	}

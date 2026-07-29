@@ -23,10 +23,11 @@ type ContextConfig struct {
 }
 
 type Repository struct {
-	Path string   `yaml:"path"`
-	URL  string   `yaml:"url"`
-	Role string   `yaml:"role,omitempty"`
-	Tags []string `yaml:"tags,omitempty"`
+	Path     string   `yaml:"path"`
+	URL      string   `yaml:"url"`
+	Role     string   `yaml:"role,omitempty"`
+	Tags     []string `yaml:"tags,omitempty"`
+	Includes []string `yaml:"includes,omitempty"`
 }
 
 // Find searches for kusabi.yaml by walking up from startDir.
