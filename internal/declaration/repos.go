@@ -9,9 +9,10 @@ import (
 
 // AddRepoOptions configures a repository entry.
 type AddRepoOptions struct {
-	Path string
-	Role string
-	Tags []string
+	Path   string
+	Role   string
+	Tags   []string
+	Branch string
 }
 
 // AddRepo appends a repository to the manifest and updates gitignore.
@@ -32,10 +33,11 @@ func AddRepo(f *manifest.File, name, url string, opts AddRepoOptions) error {
 	}
 
 	repo := manifest.Repository{
-		Path: path,
-		URL:  url,
-		Role: opts.Role,
-		Tags: opts.Tags,
+		Path:   path,
+		URL:    url,
+		Role:   opts.Role,
+		Tags:   opts.Tags,
+		Branch: opts.Branch,
 	}
 
 	f.Manifest.Repositories[name] = repo
