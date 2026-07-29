@@ -51,7 +51,7 @@ func newSyncCmd() *cobra.Command {
 				prefix := fmt.Sprintf("[%d/%d]", done, total)
 				switch {
 				case r.Err != nil:
-					fail.Printf("  ✗ %s %-20s %v\n", prefix, r.Name, r.Err)
+					printRepoError(os.Stderr, fail, prefix, r.Name, r.Err)
 				case r.Skipped:
 					warn.Printf("  ⚠ %s %-20s %s\n", prefix, r.Name, r.Output)
 				default:
@@ -60,12 +60,11 @@ func newSyncCmd() *cobra.Command {
 			}
 
 			results := action.Sync(f.RootDir(), f.Manifest, depth, g, func(p action.SyncProgress) {
-				mu.Lock()
-				defer mu.Unlock()
 				if p.Started {
-					fmt.Fprintf(os.Stderr, "  … %-20s\n", p.Name)
 					return
 				}
+				mu.Lock()
+				defer mu.Unlock()
 				printResult(p.Result, p.Done, p.Total)
 			})
 			if action.HasErrors(results) {
