@@ -156,6 +156,83 @@ func TestBuild_PerRepoIncludesFallbackToGlobal(t *testing.T) {
 	}
 }
 
+func TestBuild_ParentContextPaths(t *testing.T) {
+	dir := t.TempDir()
+	// Create a parent-level file referenced in context.paths
+	if err := os.WriteFile(filepath.Join(dir, "ADR.md"), []byte("adr-content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Create repo directory (no includes files needed for this test)
+	repoDir := filepath.Join(dir, "packages", "app")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Paths: []string{"ADR.md", "missing.md"},
+		},
+		Repositories: map[string]manifest.Repository{
+			"app": {Path: "packages/app", URL: "git@example.com/app.git"},
+		},
+	}
+
+	b := &kctx.Builder{Manifest: m, RootDir: dir}
+	out, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Parent Context Files") {
+		t.Errorf("expected 'Parent Context Files' section, got:\n%s", out)
+	}
+	if !strings.Contains(out, "adr-content") {
+		t.Errorf("expected ADR.md content in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "_(missing: missing.md)_") {
+		t.Errorf("expected missing file indicator, got:\n%s", out)
+	}
+}
+
+func TestBuildJSON_ParentContextPaths(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "ADR.md"), []byte("adr-content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	repoDir := filepath.Join(dir, "packages", "app")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Paths: []string{"ADR.md", "missing.md"},
+		},
+		Repositories: map[string]manifest.Repository{
+			"app": {Path: "packages/app", URL: "git@example.com/app.git"},
+		},
+	}
+
+	b := &kctx.Builder{Manifest: m, RootDir: dir}
+	data, err := b.BuildJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(data)
+	if !strings.Contains(out, `"parent_context_files"`) {
+		t.Errorf("expected parent_context_files in JSON, got:\n%s", out)
+	}
+	if !strings.Contains(out, "adr-content") {
+		t.Errorf("expected ADR.md content in JSON, got:\n%s", out)
+	}
+	if !strings.Contains(out, `"missing": true`) {
+		t.Errorf("expected missing: true for missing.md in JSON, got:\n%s", out)
+	}
+}
+
 func TestBuildJSON_AllIncludes(t *testing.T) {
 	dir := t.TempDir()
 	repoDir := filepath.Join(dir, "packages", "app")
