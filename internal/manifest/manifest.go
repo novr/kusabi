@@ -55,6 +55,19 @@ func Find(startDir string) (string, error) {
 	return "", fmt.Errorf("kusabi.yaml not found (searched from %s)", startDir)
 }
 
+// FilterByNames returns only the named repositories. Returns an error if any name is unknown.
+func (m *Manifest) FilterByNames(names []string) (map[string]Repository, error) {
+	result := make(map[string]Repository, len(names))
+	for _, name := range names {
+		repo, ok := m.Repositories[name]
+		if !ok {
+			return nil, fmt.Errorf("no such repository: %q", name)
+		}
+		result[name] = repo
+	}
+	return result, nil
+}
+
 // FilterByTag returns repositories matching the given tag. Empty tag returns all.
 func (m *Manifest) FilterByTag(tag string) map[string]Repository {
 	if tag == "" {

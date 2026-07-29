@@ -10,15 +10,18 @@ import (
 	"github.com/novr/kusabi/internal/action"
 	"github.com/novr/kusabi/internal/declaration"
 	"github.com/novr/kusabi/internal/git"
+	"github.com/novr/kusabi/internal/manifest"
 )
 
 func newExecCmd() *cobra.Command {
 	var tag string
+	var repoNames []string
+	var skipUncloned bool
 
 	cmd := &cobra.Command{
 		Use:   "exec <command>",
-		Short: "Execute a shell command in all (or tagged) repositories",
-		Long:  "Execute a shell command in all (or tagged) repositories.\nPass the entire command as a single quoted string: kusabi exec 'git log --oneline -5'",
+		Short: "Execute a shell command in all (or filtered) repositories",
+		Long:  "Execute a shell command in all (or filtered) repositories.\nPass the entire command as a single quoted string: kusabi exec 'git log --oneline -5'",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			command := args[0]
@@ -33,26 +36,31 @@ func newExecCmd() *cobra.Command {
 				return nil
 			}
 
-			repos := f.Manifest.FilterByTag(tag)
-			if len(repos) == 0 {
-				return fmt.Errorf("no repositories matched tag %q", tag)
+			repos, err := buildExecRepos(f.Manifest, repoNames, tag)
+			if err != nil {
+				return err
 			}
 
 			g := &git.SystemGit{}
-			results := action.Exec(f.RootDir(), repos, command, g)
+			results := action.Exec(f.RootDir(), repos, command, skipUncloned, g)
 
 			sep := color.New(color.FgCyan, color.Bold)
+			warn := color.New(color.FgYellow)
 			fail := color.New(color.FgRed)
 
 			for _, r := range results {
 				sep.Printf("\n=== %s ===\n", r.Name)
-				if r.Err != nil {
+				switch {
+				case r.Err != nil:
 					fail.Printf("error: %v\n", r.Err)
-				}
-				if r.Output != "" {
-					fmt.Print(r.Output)
-					if !strings.HasSuffix(r.Output, "\n") {
-						fmt.Println()
+				case r.Skipped:
+					warn.Printf("%s\n", r.Output)
+				default:
+					if r.Output != "" {
+						fmt.Print(r.Output)
+						if !strings.HasSuffix(r.Output, "\n") {
+							fmt.Println()
+						}
 					}
 				}
 			}
@@ -63,5 +71,38 @@ func newExecCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&tag, "tag", "", "Filter repositories by tag")
+	cmd.Flags().StringArrayVar(&repoNames, "repo", nil, "Filter repositories by name (repeatable)")
+	cmd.Flags().BoolVar(&skipUncloned, "skip-uncloned", false, "Skip uncloned repositories instead of failing")
 	return cmd
+}
+
+// buildExecRepos applies --repo and --tag filters (intersection when both given).
+func buildExecRepos(m *manifest.Manifest, names []string, tag string) (map[string]manifest.Repository, error) {
+	repos := m.Repositories
+	if len(names) > 0 {
+		var err error
+		repos, err = m.FilterByNames(names)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if tag != "" {
+		tagged := make(map[string]manifest.Repository)
+		for name, repo := range repos {
+			for _, t := range repo.Tags {
+				if t == tag {
+					tagged[name] = repo
+					break
+				}
+			}
+		}
+		if len(tagged) == 0 {
+			if len(names) > 0 {
+				return nil, fmt.Errorf("no repositories matched (--repo=%v --tag=%q)", names, tag)
+			}
+			return nil, fmt.Errorf("no repositories matched tag %q", tag)
+		}
+		repos = tagged
+	}
+	return repos, nil
 }
