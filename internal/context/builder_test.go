@@ -22,7 +22,7 @@ func TestBuild_NoInstructions(t *testing.T) {
 
 	m := &manifest.Manifest{
 		Version: "1",
-		Name:  "test",
+		Name:    "test",
 		Context: manifest.ContextConfig{
 			Includes: []string{"README.md", "CLAUDE.md"},
 		},
@@ -56,7 +56,7 @@ func TestBuild_AllIncludes(t *testing.T) {
 
 	m := &manifest.Manifest{
 		Version: "1",
-		Name:  "test",
+		Name:    "test",
 		Context: manifest.ContextConfig{
 			Includes: []string{"README.md", "CLAUDE.md"},
 		},
@@ -248,7 +248,7 @@ func TestBuildJSON_AllIncludes(t *testing.T) {
 
 	m := &manifest.Manifest{
 		Version: "1",
-		Name:  "test",
+		Name:    "test",
 		Context: manifest.ContextConfig{
 			Includes: []string{"README.md", "CLAUDE.md"},
 		},
