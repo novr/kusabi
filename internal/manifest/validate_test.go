@@ -153,6 +153,47 @@ func TestRepositoryNames_IncludesUnorderedRepos(t *testing.T) {
 	}
 }
 
+func TestValidate_ContextPathsTraversal(t *testing.T) {
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Paths: []string{"../escape.md"},
+		},
+	}
+	err := manifest.Validate(m)
+	if err == nil || !strings.Contains(err.Error(), "context.paths[0]") {
+		t.Fatalf("expected context.paths validation error, got: %v", err)
+	}
+}
+
+func TestValidate_ContextPathsAbsolute(t *testing.T) {
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Paths: []string{"/etc/passwd"},
+		},
+	}
+	err := manifest.Validate(m)
+	if err == nil || !strings.Contains(err.Error(), "context.paths[0]") {
+		t.Fatalf("expected context.paths validation error, got: %v", err)
+	}
+}
+
+func TestValidate_ContextPathsOK(t *testing.T) {
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Paths: []string{"team-knowledge/ADR.md", ".agents/skills/deploy.md"},
+		},
+	}
+	if err := manifest.Validate(m); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLoad_Validates(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, manifest.Filename)

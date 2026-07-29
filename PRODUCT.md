@@ -46,6 +46,9 @@ description: "Cross-platform ecosystem bound by Kusabi."
 
 context:
   agents: "./AGENTS.md"
+  paths:
+    - "team-knowledge/ADR.md"
+    - ".agents/skills/deploy.md"
   includes:
     - "README.md"
     - "CLAUDE.md"
@@ -88,9 +91,10 @@ repositories:
 Markdown 出力の構成:
 
 1. **Meta Architecture & Global Policy** — `context.agents` が指すファイルの内容（存在する場合）
-2. **Bound Repositories Overview** — 宣言上の名前・パス・役割・タグ
-3. **Repository Contexts** — 各子について、`context.includes` に列挙されたパスのうち**存在するものをすべて**順に転載。`--tree` 時はディレクトリ構造を付加
+2. **Parent Context Files** — `context.paths` に列挙された親側ファイルを宣言順に転載（1件以上宣言がある場合）
+3. **Bound Repositories Overview** — 宣言上の名前・パス・役割・タグ
+4. **Repository Contexts** — 各子について、`context.includes` に列挙されたパスのうち**存在するものをすべて**順に転載。`--tree` 時はディレクトリ構造を付加
 
-JSON 出力（`--json`）は同内容を構造化する。`includes` の各ファイルは配列要素として列挙する。
+JSON 出力（`--json`）は同内容を構造化する。`includes` の各ファイルは配列要素として列挙し、`context.paths` は `meta.parent_context_files` に列挙する。
 
-欠落した include は捏造せず、該当ファイルを省略する。いずれの include も存在しない子についてのみ、観測結果として欠落を一文で示す。
+欠落した include は捏造せず、該当ファイルを省略する。いずれの include も存在しない子についてのみ、観測結果として欠落を一文で示す。`context.paths` の欠落は宣言の明示的な対象であるため、省略ではなく欠落として示す（Markdown は `_(missing: path)_`、JSON は `missing: true`）。

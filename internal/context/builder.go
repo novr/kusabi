@@ -26,14 +26,22 @@ type JSONOutput struct {
 }
 
 type JSONMeta struct {
-	Name          string `json:"name"`
-	Description   string `json:"description,omitempty"`
-	AgentsContent string `json:"agents_content,omitempty"`
+	Name               string           `json:"name"`
+	Description        string           `json:"description,omitempty"`
+	AgentsContent      string           `json:"agents_content,omitempty"`
+	ParentContextFiles []JSONParentFile `json:"parent_context_files,omitempty"`
 }
 
 type JSONContextFile struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`
+}
+
+// JSONParentFile is one context.paths entry. Missing is set when the path cannot be read.
+type JSONParentFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content,omitempty"`
+	Missing bool   `json:"missing,omitempty"`
 }
 
 type JSONRepo struct {
@@ -56,6 +64,18 @@ func (b *Builder) Build() (string, error) {
 		sb.WriteString("## Meta Architecture & Global Policy\n\n")
 		sb.WriteString(agentsContent)
 		sb.WriteString("\n---\n\n")
+	}
+
+	if parentFiles := b.readParentContextFiles(); len(parentFiles) > 0 {
+		sb.WriteString("## Parent Context Files\n\n")
+		for _, f := range parentFiles {
+			if f.Missing {
+				sb.WriteString(fmt.Sprintf("_(missing: %s)_\n\n", f.Path))
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("### %s\n\n%s\n\n", f.Path, f.Content))
+		}
+		sb.WriteString("---\n\n")
 	}
 
 	names := b.sortedNames()
@@ -116,9 +136,10 @@ func (b *Builder) BuildJSON() ([]byte, error) {
 	out := JSONOutput{
 		GeneratedAt: time.Now().UTC(),
 		Meta: JSONMeta{
-			Name:          b.Manifest.Name,
-			Description:   b.Manifest.Description,
-			AgentsContent: b.readAgents(),
+			Name:               b.Manifest.Name,
+			Description:        b.Manifest.Description,
+			AgentsContent:      b.readAgents(),
+			ParentContextFiles: b.readParentContextFiles(),
 		},
 	}
 
@@ -146,6 +167,41 @@ func (b *Builder) BuildJSON() ([]byte, error) {
 	}
 
 	return json.MarshalIndent(out, "", "  ")
+}
+
+func (b *Builder) readParentContextFiles() []JSONParentFile {
+	if len(b.Manifest.Context.Paths) == 0 {
+		return nil
+	}
+	var out []JSONParentFile
+	for _, p := range b.Manifest.Context.Paths {
+		absPath, ok := b.resolveUnderRoot(p)
+		if !ok {
+			out = append(out, JSONParentFile{Path: p, Missing: true})
+			continue
+		}
+		data, err := os.ReadFile(absPath)
+		if err != nil {
+			out = append(out, JSONParentFile{Path: p, Missing: true})
+			continue
+		}
+		out = append(out, JSONParentFile{Path: p, Content: string(data)})
+	}
+	return out
+}
+
+// resolveUnderRoot joins rel to RootDir only when it stays inside the workspace.
+// Absolute paths and ".." escapes are rejected (filepath.Join would otherwise ignore RootDir).
+func (b *Builder) resolveUnderRoot(rel string) (string, bool) {
+	if err := manifest.ValidateRepoPath(rel); err != nil {
+		return "", false
+	}
+	root := filepath.Clean(b.RootDir)
+	abs := filepath.Join(root, filepath.Clean(rel))
+	if abs != root && !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+		return "", false
+	}
+	return abs, true
 }
 
 func (b *Builder) readAgents() string {
