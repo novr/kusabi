@@ -151,19 +151,17 @@ func printCheck(ok, warn bool, label, detail string) {
 
 	var status string
 	switch {
-	case ok:
-		status = okColor.Sprint("  [OK]   ")
 	case warn:
 		status = warnColor.Sprint("  [WARN] ")
+	case ok:
+		status = okColor.Sprint("  [OK]   ")
 	default:
 		status = errColor.Sprint("  [ERROR]")
 	}
 
 	msg := fmt.Sprintf("%s %s", status, label)
-	if !ok && detail != "" && !strings.HasPrefix(detail, "not found") {
+	if detail != "" {
 		msg += fmt.Sprintf(": %s", detail)
-	} else if !ok && detail != "" {
-		msg += fmt.Sprintf(" (%s)", detail)
 	}
 	fmt.Println(msg)
 }
