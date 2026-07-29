@@ -1,53 +1,53 @@
-# AGENTS.md — 関心・責務・境界
+# AGENTS.md — Concerns, Responsibilities, Boundaries
 
-Kusabi の仕事は、複数リポジトリを**束ねること**と、それを**一つの文脈として差し出せること**に限る。
-それ以外を賢くやろうとした瞬間に、Submodule やモノレポオーケストレータへ滑る。
+Kusabi's job is limited to **binding** multiple repositories and **surfacing** them as one context.
+The moment it tries to be smarter, it slides into Submodule territory or monorepo orchestration.
 
-## 引き受ける / 引き受けない
+## In scope / out of scope
 
-引き受けるもの:
+In scope:
 
-- 子の所在・役割・束ね方の宣言
-- 親履歴へ子の実体が混入しないことの防衛
-- 宣言された集合への、子単位の作用（同期・状態・一括実行）
-- 宣言と各子のローカル文書からの、読み取り専用の文脈集約
+- Declaring where children live, their roles, and how they are bound
+- Defending the parent history from child content
+- Per-child actions on the declared set (sync, status, bulk exec)
+- Read-only context aggregation from the declaration and each child's local documents
 
-引き受けないもの:
+Out of scope:
 
-- 子リポジトリ内部の設計・ビルド・リリースの意味理解
-- 横断変更の調停、依存解決、バージョンロックの統治
-- エージェント行動方針そのものの起草（集約はするが、中身の正しさは持たない）
-- 親と子を一つの Git 履歴として統合すること
+- Understanding design, build, or release semantics inside child repositories
+- Coordinating cross-repo changes, dependency resolution, or version-lock governance
+- Drafting agent behavior policy (aggregation only; it does not own correctness)
+- Merging parent and children into one Git history
 
-## 関心
+## Concerns
 
-### 束ねの宣言
+### Binding declaration
 
-何を、どこに、どんな役割で束ねるか。これが唯一の構成の正である。
+What to bind, where, and with what role. This is the single source of truth for composition.
 
-- **責務**: 束ねの定義を保持し、変更し、検証する。
-- **境界**: 子へ手を伸ばさない。文脈文書を組み立てない。
-- **付随**: 宣言が親履歴を汚さないよう、親作業面の除外を宣言とセットで保つ。除外だけを独自ポリシーにしない。
+- **Responsibility**: Hold, change, and validate the binding definition.
+- **Boundary**: Do not reach into children. Do not assemble context documents.
+- **Collateral**: Keep parent working-tree exclusions in sync with the declaration so the parent history stays clean. Exclusion alone is not a standalone policy.
 
-### 子への作用
+### Actions on children
 
-宣言を入力に、各子リポジトリへ作用を届ける。
+Deliver effects to each child repository using the declaration as input.
 
-- **責務**: 子単位の取得・更新・状態把握・コマンド適用。対象の集合は宣言から取る。
-- **境界**: 宣言の内容を書き換えない（読むだけ）。集約文書を作らない。子の中身の意味には関与しない。
+- **Responsibility**: Fetch, update, inspect state, and apply commands per child. Target set comes from the declaration.
+- **Boundary**: Do not rewrite the declaration (read only). Do not produce aggregated documents. Do not interpret child internals.
 
-### 文脈の集約
+### Context aggregation
 
-メタ全体を、エージェントや開発者が一度に読める形へ畳む。
+Fold the meta workspace into a form agents and developers can read at once.
 
-- **責務**: 全体方針・役割・各子の提示用文書を、観測として一つの成果物にまとめる。
-- **境界**: リポジトリを変更しない。方針の正誤を裁定しない。欠けた情報を補完して「正しそうな文脈」を作らない。
+- **Responsibility**: Combine global policy, roles, and each child's surfaced documents into one observation artifact.
+- **Boundary**: Do not modify repositories. Do not judge policy correctness. Do not fill gaps to fabricate a plausible-looking context.
 
-## 境界の衝突規則
+## Collision rules
 
-関心はユースケース上で同時に動く。そのときに崩さない線だけを固定する。
+Concerns run together in real use cases. These lines must not break:
 
-1. **副作用の主体は一つ** — 宣言の更新、親作業面の除外、子への作用、文脈の出力は、それぞれ別の結果である。一つの操作が複数の副作用を持つなら、副作用ごとに主体を明示する。
-2. **作用は宣言に従属し、宣言を侵さない** — 作用の対象選定は宣言に依存してよい。依存してよいのは参照までであり、作用の過程で束ね方を黙って変えない。
-3. **集約は常に観測** — 集約の入出力が理由になって、子や宣言を書き換えない。
-4. **配信は関心ではない** — CLI やその他の入口は、上の三関心を露出する配線に留める。判断と作用の本体を入口に置かない。
+1. **One side-effect owner** — Declaration updates, parent exclusions, child actions, and context output are separate outcomes. If one operation has multiple side effects, name the owner for each.
+2. **Actions are subordinate to the declaration** — Action target selection may depend on the declaration. Dependency is reference-only; actions must not silently change how things are bound.
+3. **Aggregation is always observation** — Aggregation I/O must never be a reason to rewrite children or the declaration.
+4. **Delivery is not a concern** — CLI and other entry points are wiring that exposes the three concerns above. Judgment and action logic do not live at the entry point.
