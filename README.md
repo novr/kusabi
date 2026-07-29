@@ -21,11 +21,11 @@ Installs `kusabi` (`ksb` / `git-kusabi` are symlinks to the same binary). Releas
 go install github.com/novr/kusabi/cmd/kusabi@latest
 ```
 
-Short alias `ksb` and Git integration `git kusabi` are also available:
+For `ksb` or `git kusabi`, symlink the installed binary (Homebrew does this automatically):
 
 ```bash
-go install github.com/novr/kusabi/cmd/ksb@latest
-go install github.com/novr/kusabi/cmd/git-kusabi@latest
+ln -s "$(command -v kusabi)" "$(dirname "$(command -v kusabi)")/ksb"
+ln -s "$(command -v kusabi)" "$(dirname "$(command -v kusabi)")/git-kusabi"
 ```
 
 ## Release
@@ -118,7 +118,7 @@ repositories:
 
 Action commands exit non-zero when any repository **fails** (`Err`). **Skips** (dirty, detached, sync disabled, etc.) are warnings only and exit 0.
 
-Binary: `kusabi` (short: `ksb`). With `git-kusabi` on `PATH`, `git kusabi` works too.
+Binary: `kusabi`. Homebrew installs `ksb` and `git-kusabi` as symlinks; `git kusabi` works when `git-kusabi` is on `PATH`.
 
 Design boundaries: [AGENTS.md](AGENTS.md).
 

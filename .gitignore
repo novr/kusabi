@@ -1,0 +1,11 @@
+# Binaries
+/kusabi
+*.exe
+*.test
+*.out
+
+# Build
+/dist/
+
+# OS
+.DS_Store
