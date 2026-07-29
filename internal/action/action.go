@@ -13,10 +13,11 @@ import (
 
 // RepoResult is the outcome of an operation on one repository.
 type RepoResult struct {
-	Name    string
-	Output  string
-	Err     error
-	Skipped bool // true when the operation was skipped with a warning (not a failure)
+	Name       string
+	Output     string
+	Err        error
+	Skipped    bool // true when the operation was skipped with a warning (not a failure)
+	IsWorktree bool // populated by Status; indicates a linked git worktree
 }
 
 // Sync clones missing repositories and pulls existing ones.
@@ -55,24 +56,73 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 	return toRepoResults(results)
 }
 
+// StatusResult extends RepoResult with per-repo status details for JSON output.
+type StatusResult struct {
+	RepoResult
+	Branch    string
+	Ahead     int
+	Behind    int
+	Modified  int
+	Untracked int
+	Cloned    bool
+}
+
 // Status reports branch and working tree state for each repository.
-func Status(rootDir string, m *manifest.Manifest, g git.Runner) []RepoResult {
-	results := runner.Run(m.Repositories, 0, func(name string, repo manifest.Repository) runner.Result {
+func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
+	type enriched struct {
+		name       string
+		output     string
+		err        error
+		cloned     bool
+		isWorktree bool
+		branch     string
+		ahead      int
+		behind     int
+		modified   int
+		untracked  int
+	}
+
+	raw := runner.RunTyped(m.Repositories, 0, func(name string, repo manifest.Repository) enriched {
 		absPath := filepath.Join(rootDir, repo.Path)
-		if !g.IsRepo(absPath) {
-			return runner.Result{RepoName: name, Output: "NOT CLONED"}
+		r := enriched{
+			name:       name,
+			cloned:     g.IsRepo(absPath),
+			isWorktree: g.IsWorktree(absPath),
 		}
-		status, err := g.Status(absPath)
+		if !r.cloned {
+			r.output = "NOT CLONED"
+			return r
+		}
+		s, err := g.Status(absPath)
 		if err != nil {
-			return runner.Result{RepoName: name, Err: err}
+			r.err = err
+			return r
 		}
-		out := fmt.Sprintf("%-20s  +%d ~%d", status.Branch, status.Untracked, status.Modified)
-		if status.Ahead > 0 || status.Behind > 0 {
-			out += fmt.Sprintf("  (↑%d ↓%d)", status.Ahead, status.Behind)
+		r.branch = s.Branch
+		r.ahead = s.Ahead
+		r.behind = s.Behind
+		r.modified = s.Modified
+		r.untracked = s.Untracked
+		r.output = fmt.Sprintf("%-20s  +%d ~%d", s.Branch, s.Untracked, s.Modified)
+		if s.Ahead > 0 || s.Behind > 0 {
+			r.output += fmt.Sprintf("  (↑%d ↓%d)", s.Ahead, s.Behind)
 		}
-		return runner.Result{RepoName: name, Output: out}
+		return r
 	})
-	return toRepoResults(results)
+
+	out := make([]StatusResult, len(raw))
+	for i, r := range raw {
+		out[i] = StatusResult{
+			RepoResult: RepoResult{Name: r.name, Output: r.output, Err: r.err, IsWorktree: r.isWorktree},
+			Branch:     r.branch,
+			Ahead:      r.ahead,
+			Behind:     r.behind,
+			Modified:   r.modified,
+			Untracked:  r.untracked,
+			Cloned:     r.cloned,
+		}
+	}
+	return out
 }
 
 // Exec runs a shell command in each selected repository.
@@ -92,6 +142,16 @@ func Exec(rootDir string, repos map[string]manifest.Repository, command string, 
 
 // HasErrors reports whether any result failed.
 func HasErrors(results []RepoResult) bool {
+	for _, r := range results {
+		if r.Err != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// HasStatusErrors reports whether any status result failed.
+func HasStatusErrors(results []StatusResult) bool {
 	for _, r := range results {
 		if r.Err != nil {
 			return true
