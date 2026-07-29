@@ -80,6 +80,7 @@ func newStatusCmd() *cobra.Command {
 
 func printStatusJSON(results []action.StatusResult, m *manifest.Manifest) error {
 	entries := make([]statusJSON, len(results))
+	hasErr := false
 	for i, r := range results {
 		e := statusJSON{
 			Name:       r.Name,
@@ -94,10 +95,17 @@ func printStatusJSON(results []action.StatusResult, m *manifest.Manifest) error 
 		}
 		if r.Err != nil {
 			e.Error = r.Err.Error()
+			hasErr = true
 		}
 		entries[i] = e
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	return enc.Encode(entries)
+	if err := enc.Encode(entries); err != nil {
+		return err
+	}
+	if hasErr {
+		return fmt.Errorf("status failed for one or more repositories")
+	}
+	return nil
 }
