@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/novr/kusabi/internal/git"
@@ -135,6 +136,19 @@ func initTestRepo(t *testing.T, dir string) {
 	mustRunGit(t, dir, "commit", "--allow-empty", "-m", "init")
 }
 
+func currentBranchName(t *testing.T, dir string) string {
+	t.Helper()
+	out, err := exec.Command("git", "-C", dir, "branch", "--show-current").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := strings.TrimSpace(string(out))
+	if name == "" {
+		t.Fatal("expected a branch name")
+	}
+	return name
+}
+
 func TestCurrentBranch_RealRepo(t *testing.T) {
 	dir := t.TempDir()
 	initTestRepo(t, dir)
@@ -181,10 +195,11 @@ func TestCheckoutBranch_FromOriginTracking(t *testing.T) {
 	mustRunGit(t, work, "config", "user.name", "Test")
 	mustRunGit(t, work, "config", "commit.gpgsign", "false")
 	mustRunGit(t, work, "commit", "--allow-empty", "-m", "init")
+	defaultBranch := currentBranchName(t, work)
 	mustRunGit(t, work, "checkout", "-b", "develop")
 	mustRunGit(t, work, "commit", "--allow-empty", "-m", "develop")
 	mustRunGit(t, work, "push", "-u", "origin", "develop")
-	mustRunGit(t, work, "checkout", "main")
+	mustRunGit(t, work, "checkout", defaultBranch)
 	mustRunGit(t, work, "branch", "-D", "develop")
 
 	g := &git.SystemGit{}
