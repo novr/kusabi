@@ -97,7 +97,10 @@ func buildExecRepos(m *manifest.Manifest, names []string, tag string) (map[strin
 			}
 		}
 		if len(tagged) == 0 {
-			return nil, fmt.Errorf("no repositories matched (--repo=%v --tag=%q)", names, tag)
+			if len(names) > 0 {
+				return nil, fmt.Errorf("no repositories matched (--repo=%v --tag=%q)", names, tag)
+			}
+			return nil, fmt.Errorf("no repositories matched tag %q", tag)
 		}
 		repos = tagged
 	}
