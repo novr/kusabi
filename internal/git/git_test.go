@@ -43,3 +43,22 @@ func TestIsRepo_NotARepo(t *testing.T) {
 		t.Fatal("expected non-repo directory to return false")
 	}
 }
+
+func TestIsDetachedHEAD_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	g := &git.SystemGit{}
+	// Non-repo should return false, not panic
+	if g.IsDetachedHEAD(dir) {
+		t.Fatal("expected false for non-repo directory")
+	}
+}
+
+func TestIsDirty_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	g := &git.SystemGit{}
+	// Non-repo: git status fails → err != nil, but should not panic
+	_, err := g.IsDirty(dir)
+	if err == nil {
+		t.Fatal("expected error for non-repo directory")
+	}
+}

@@ -15,6 +15,8 @@ type Runner interface {
 	Pull(path string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
+	IsDetachedHEAD(path string) bool
+	IsDirty(path string) (bool, error)
 }
 
 type StatusResult struct {
@@ -81,6 +83,29 @@ func (g *SystemGit) Status(path string) (StatusResult, error) {
 	}
 
 	return result, nil
+}
+
+func (g *SystemGit) IsDetachedHEAD(path string) bool {
+	out, err := output(path, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(out) == "HEAD"
+}
+
+// IsDirty reports whether the working tree has staged or unstaged changes to tracked files.
+// Untracked files are not considered dirty (pull --ff-only succeeds in that state).
+func (g *SystemGit) IsDirty(path string) (bool, error) {
+	out, err := output(path, "status", "--porcelain")
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line != "" && !strings.HasPrefix(line, "??") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (g *SystemGit) IsRepo(path string) bool {

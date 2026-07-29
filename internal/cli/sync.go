@@ -40,12 +40,16 @@ func newSyncCmd() *cobra.Command {
 			results := action.Sync(f.RootDir(), f.Manifest, depth, g)
 
 			ok := color.New(color.FgGreen)
+			warn := color.New(color.FgYellow)
 			fail := color.New(color.FgRed)
 
 			for _, r := range results {
-				if r.Err != nil {
+				switch {
+				case r.Err != nil:
 					fail.Printf("  ✗ %-20s %v\n", r.Name, r.Err)
-				} else {
+				case r.Skipped:
+					warn.Printf("  ⚠ %-20s %s\n", r.Name, r.Output)
+				default:
 					ok.Printf("  ✓ %-20s %s\n", r.Name, r.Output)
 				}
 			}
