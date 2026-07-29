@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -9,12 +10,14 @@ import (
 
 	"github.com/novr/kusabi/internal/declaration"
 	"github.com/novr/kusabi/internal/git"
+	"github.com/novr/kusabi/internal/giturl"
 	"github.com/novr/kusabi/internal/health"
 	"github.com/novr/kusabi/internal/manifest"
 )
 
 func newDoctorCmd() *cobra.Command {
 	var migrateGitignore bool
+	var fixRemote bool
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
@@ -54,6 +57,19 @@ func newDoctorCmd() *cobra.Command {
 				}
 			}
 
+			if fixRemote {
+				fmt.Println()
+				if err := runFixRemote(f, g); err != nil {
+					return err
+				}
+				// Re-run checks after repair
+				checks = health.Doctor(f, g)
+				fmt.Println()
+				for _, c := range checks {
+					printCheck(c.OK, c.Warn, c.Label, c.Detail)
+				}
+			}
+
 			if health.HasIssues(checks) {
 				return fmt.Errorf("doctor found issues")
 			}
@@ -62,6 +78,8 @@ func newDoctorCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&migrateGitignore, "migrate-gitignore", false,
 		"Adopt manually-excluded paths into the kusabi managed block")
+	cmd.Flags().BoolVar(&fixRemote, "fix-remote", false,
+		"Repair origin remote URL to match the declared url in kusabi.yaml")
 	return cmd
 }
 
@@ -86,6 +104,32 @@ func runMigrateGitignore(f *manifest.File) error {
 			}
 			migrateColor.Printf("  ↳ migrated [%s] %s to kusabi managed block\n", name, repo.Path)
 		}
+	}
+	return nil
+}
+
+// runFixRemote sets the origin remote URL to the declared value for repos with URL mismatches.
+func runFixRemote(f *manifest.File, g git.Runner) error {
+	rootDir := f.RootDir()
+	fixColor := color.New(color.FgCyan)
+	for _, name := range f.Manifest.RepositoryNames() {
+		repo := f.Manifest.Repositories[name]
+		absPath := filepath.Join(rootDir, repo.Path)
+		if !g.IsRepo(absPath) || repo.URL == "" {
+			continue
+		}
+		actual, err := g.RemoteURL(absPath, "origin")
+		if err != nil {
+			continue
+		}
+		// Only fix repos where the canonical URLs differ.
+		if giturl.Equal(repo.URL, actual) {
+			continue
+		}
+		if err := g.SetRemoteURL(absPath, "origin", repo.URL); err != nil {
+			return fmt.Errorf("fix remote for %s: %w", name, err)
+		}
+		fixColor.Printf("  ↳ fixed [%s] origin: %s → %s\n", name, actual, repo.URL)
 	}
 	return nil
 }

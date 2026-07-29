@@ -17,6 +17,8 @@ type Runner interface {
 	IsRepo(path string) bool
 	IsDetachedHEAD(path string) bool
 	IsDirty(path string) (bool, error)
+	RemoteURL(path, remote string) (string, error)
+	SetRemoteURL(path, remote, url string) error
 }
 
 type StatusResult struct {
@@ -106,6 +108,20 @@ func (g *SystemGit) IsDirty(path string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// RemoteURL returns the URL configured for the named remote.
+func (g *SystemGit) RemoteURL(path, remote string) (string, error) {
+	out, err := output(path, "remote", "get-url", remote)
+	if err != nil {
+		return "", fmt.Errorf("git remote get-url %s: %w", remote, err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// SetRemoteURL updates the URL for the named remote.
+func (g *SystemGit) SetRemoteURL(path, remote, url string) error {
+	return run(path, "remote", "set-url", remote, url)
 }
 
 func (g *SystemGit) IsRepo(path string) bool {
