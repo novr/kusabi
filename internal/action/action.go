@@ -52,7 +52,6 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 			if dirty {
 				return runner.Result{RepoName: name, Output: "skipped: dirty working tree", Skipped: true}
 			}
-
 			switchMsg, alignErr := alignToDeclaredBranch(absPath, repo.Branch, g)
 			if alignErr != nil {
 				return runner.Result{RepoName: name, Err: alignErr}
