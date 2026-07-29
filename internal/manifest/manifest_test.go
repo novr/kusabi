@@ -76,6 +76,34 @@ func TestFind_NotFound(t *testing.T) {
 	}
 }
 
+func TestBranchField_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Repositories: map[string]manifest.Repository{
+			"with-branch":    {Path: "packages/wb", URL: "git@example.com/wb.git", Branch: "develop"},
+			"without-branch": {Path: "packages/wo", URL: "git@example.com/wo.git"},
+		},
+	}
+
+	if err := manifest.Save(m, path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := manifest.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Repositories["with-branch"].Branch != "develop" {
+		t.Errorf("Branch not persisted: got %q", loaded.Repositories["with-branch"].Branch)
+	}
+	if loaded.Repositories["without-branch"].Branch != "" {
+		t.Errorf("Branch should be empty for repo without branch declaration")
+	}
+}
+
 func TestFilterByTag(t *testing.T) {
 	m := &manifest.Manifest{
 		Repositories: map[string]manifest.Repository{

@@ -11,7 +11,7 @@ import (
 
 // Runner abstracts git operations for testability.
 type Runner interface {
-	Clone(url, path string, depth int) error
+	Clone(url, path, branch string, depth int) error
 	Pull(path string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
@@ -30,10 +30,13 @@ type SystemGit struct{}
 
 var _ Runner = (*SystemGit)(nil)
 
-func (g *SystemGit) Clone(url, path string, depth int) error {
+func (g *SystemGit) Clone(url, path, branch string, depth int) error {
 	args := []string{"clone"}
 	if depth > 0 {
 		args = append(args, fmt.Sprintf("--depth=%d", depth))
+	}
+	if branch != "" {
+		args = append(args, "-b", branch)
 	}
 	args = append(args, url, path)
 	return run("", args...)

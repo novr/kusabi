@@ -206,7 +206,11 @@ func syncContextNode(cfg ContextConfig, root *yaml.Node) {
 	} else {
 		removeKey(ctx, "agents")
 	}
-	syncSequence(ctx, "includes", cfg.Includes)
+	if len(cfg.Includes) > 0 {
+		syncSequence(ctx, "includes", cfg.Includes)
+	} else {
+		removeKey(ctx, "includes")
+	}
 	if len(cfg.Paths) > 0 {
 		syncSequence(ctx, "paths", cfg.Paths)
 	} else {
@@ -262,6 +266,16 @@ func updateRepoNode(node *yaml.Node, repo Repository) {
 	} else {
 		removeKey(node, "tags")
 	}
+	if len(repo.Includes) > 0 {
+		syncSequence(node, "includes", repo.Includes)
+	} else {
+		removeKey(node, "includes")
+	}
+	if repo.Branch != "" {
+		setScalar(node, "branch", repo.Branch)
+	} else {
+		removeKey(node, "branch")
+	}
 }
 
 func buildDocumentNode(m *Manifest) *yaml.Node {
@@ -276,7 +290,9 @@ func buildDocumentNode(m *Manifest) *yaml.Node {
 		if m.Context.Agents != "" {
 			setScalar(ctx, "agents", m.Context.Agents)
 		}
-		syncSequence(ctx, "includes", m.Context.Includes)
+		if len(m.Context.Includes) > 0 {
+			syncSequence(ctx, "includes", m.Context.Includes)
+		}
 		if len(m.Context.Paths) > 0 {
 			syncSequence(ctx, "paths", m.Context.Paths)
 		}
