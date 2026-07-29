@@ -69,9 +69,18 @@ func newDoctorCmd() *cobra.Command {
 func runMigrateGitignore(f *manifest.File) error {
 	rootDir := f.RootDir()
 	migrateColor := color.New(color.FgCyan)
+	// Only migrate repos that are excluded outside the managed block.
+	managed := declaration.GitignoreEntries(rootDir)
 	for _, name := range f.Manifest.RepositoryNames() {
 		repo := f.Manifest.Repositories[name]
-		if declaration.IsExcludedInFullGitignore(rootDir, repo.Path) {
+		inManaged := false
+		for _, e := range managed {
+			if e == repo.Path || e == repo.Path+"/" {
+				inManaged = true
+				break
+			}
+		}
+		if !inManaged && declaration.IsExcludedInFullGitignore(rootDir, repo.Path) {
 			if err := declaration.EnsureGitignoreEntry(rootDir, repo.Path); err != nil {
 				return fmt.Errorf("migrate gitignore for %s: %w", name, err)
 			}
