@@ -21,49 +21,26 @@ type Result struct {
 	Duration time.Duration
 }
 
-// Run executes fn for each repository in parallel, bounded by maxConcurrency.
-// Results are returned sorted by repository name for stable output ordering.
-func Run(
-	repos map[string]manifest.Repository,
-	maxConcurrency int,
-	fn func(name string, repo manifest.Repository) Result,
-) []Result {
-	if maxConcurrency <= 0 {
-		maxConcurrency = runtime.NumCPU() * 2
+func resolveOrder(order []string, repos map[string]manifest.Repository) []string {
+	if len(order) > 0 {
+		out := make([]string, 0, len(order))
+		for _, name := range order {
+			if _, ok := repos[name]; ok {
+				out = append(out, name)
+			}
+		}
+		return out
 	}
-
-	sem := semaphore.NewWeighted(int64(maxConcurrency))
-	ctx := context.Background()
-
-	results := make([]Result, 0, len(repos))
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	for name, repo := range repos {
-		wg.Add(1)
-		go func(n string, r manifest.Repository) {
-			defer wg.Done()
-			_ = sem.Acquire(ctx, 1)
-			defer sem.Release(1)
-
-			res := fn(n, r)
-			mu.Lock()
-			results = append(results, res)
-			mu.Unlock()
-		}(name, repo)
+	names := make([]string, 0, len(repos))
+	for name := range repos {
+		names = append(names, name)
 	}
-
-	wg.Wait()
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].RepoName < results[j].RepoName
-	})
-	return results
+	sort.Strings(names)
+	return names
 }
 
-// RunTyped is like Run but the callback returns an arbitrary type T.
-// Results are returned in stable alphabetical order by repository name.
-func RunTyped[T any](
+func runParallel[T any](
+	order []string,
 	repos map[string]manifest.Repository,
 	maxConcurrency int,
 	fn func(name string, repo manifest.Repository) T,
@@ -72,41 +49,54 @@ func RunTyped[T any](
 		maxConcurrency = runtime.NumCPU() * 2
 	}
 
-	type indexed struct {
-		name string
-		val  T
-	}
-
+	names := resolveOrder(order, repos)
 	sem := semaphore.NewWeighted(int64(maxConcurrency))
 	ctx := context.Background()
 
-	items := make([]indexed, 0, len(repos))
-	var mu sync.Mutex
+	type indexed struct {
+		pos int
+		val T
+	}
+
+	items := make([]indexed, len(names))
 	var wg sync.WaitGroup
 
-	for name, repo := range repos {
+	for i, name := range names {
 		wg.Add(1)
-		go func(n string, r manifest.Repository) {
+		go func(pos int, n string) {
 			defer wg.Done()
 			_ = sem.Acquire(ctx, 1)
 			defer sem.Release(1)
-
-			v := fn(n, r)
-			mu.Lock()
-			items = append(items, indexed{name: n, val: v})
-			mu.Unlock()
-		}(name, repo)
+			items[pos] = indexed{pos: pos, val: fn(n, repos[n])}
+		}(i, name)
 	}
 
 	wg.Wait()
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].name < items[j].name
-	})
-
 	out := make([]T, len(items))
-	for i, it := range items {
-		out[i] = it.val
+	for _, it := range items {
+		out[it.pos] = it.val
 	}
 	return out
+}
+
+// Run executes fn for each repository in parallel.
+// order selects which repos to run and in what sequence; pass nil to run all repos sorted by name.
+func Run(
+	order []string,
+	repos map[string]manifest.Repository,
+	maxConcurrency int,
+	fn func(name string, repo manifest.Repository) Result,
+) []Result {
+	return runParallel(order, repos, maxConcurrency, fn)
+}
+
+// RunTyped is like Run but the callback returns an arbitrary type T.
+func RunTyped[T any](
+	order []string,
+	repos map[string]manifest.Repository,
+	maxConcurrency int,
+	fn func(name string, repo manifest.Repository) T,
+) []T {
+	return runParallel(order, repos, maxConcurrency, fn)
 }

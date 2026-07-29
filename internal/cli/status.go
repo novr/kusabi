@@ -22,8 +22,10 @@ type statusJSON struct {
 	Behind     int    `json:"behind"`
 	Modified   int    `json:"modified"`
 	Untracked  int    `json:"untracked"`
-	IsWorktree bool   `json:"is_worktree"`
-	Cloned     bool   `json:"cloned"`
+	IsWorktree     bool   `json:"is_worktree"`
+	SyncDisabled   bool   `json:"sync_disabled"`
+	DeclaredBranch string `json:"declared_branch,omitempty"`
+	Cloned         bool   `json:"cloned"`
 	Error      string `json:"error,omitempty"`
 }
 
@@ -83,15 +85,17 @@ func printStatusJSON(results []action.StatusResult, m *manifest.Manifest) error 
 	hasErr := false
 	for i, r := range results {
 		e := statusJSON{
-			Name:       r.Name,
-			Path:       m.Repositories[r.Name].Path,
-			Branch:     r.Branch,
-			Ahead:      r.Ahead,
-			Behind:     r.Behind,
-			Modified:   r.Modified,
-			Untracked:  r.Untracked,
-			IsWorktree: r.IsWorktree,
-			Cloned:     r.Cloned,
+			Name:           r.Name,
+			Path:           m.Repositories[r.Name].Path,
+			Branch:         r.Branch,
+			Ahead:          r.Ahead,
+			Behind:         r.Behind,
+			Modified:       r.Modified,
+			Untracked:      r.Untracked,
+			IsWorktree:     r.IsWorktree,
+			SyncDisabled:   r.SyncDisabled,
+			DeclaredBranch: m.Repositories[r.Name].Branch,
+			Cloned:         r.Cloned,
 		}
 		if r.Err != nil {
 			e.Error = r.Err.Error()

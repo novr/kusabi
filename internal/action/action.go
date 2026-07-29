@@ -21,21 +21,22 @@ type RepoResult struct {
 
 // StatusResult is the outcome of a status check on one repository.
 type StatusResult struct {
-	Name       string
-	Output     string
-	Err        error
-	IsWorktree bool
-	Branch     string
-	Ahead      int
-	Behind     int
-	Modified   int
-	Untracked  int
-	Cloned     bool
+	Name         string
+	Output       string
+	Err          error
+	IsWorktree   bool
+	SyncDisabled bool
+	Branch       string
+	Ahead        int
+	Behind       int
+	Modified     int
+	Untracked    int
+	Cloned       bool
 }
 
 // Sync clones missing repositories and pulls existing ones.
 func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoResult {
-	results := runner.Run(m.Repositories, 0, func(name string, repo manifest.Repository) runner.Result {
+	results := runner.Run(m.RepositoryNames(), m.Repositories, 0, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
 		var out string
 		var opErr error
@@ -85,20 +86,22 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 		output     string
 		err        error
 		cloned     bool
-		isWorktree bool
-		branch     string
+		isWorktree   bool
+		syncDisabled bool
+		branch       string
 		ahead      int
 		behind     int
 		modified   int
 		untracked  int
 	}
 
-	raw := runner.RunTyped(m.Repositories, 0, func(name string, repo manifest.Repository) enriched {
+	raw := runner.RunTyped(m.RepositoryNames(), m.Repositories, 0, func(name string, repo manifest.Repository) enriched {
 		absPath := filepath.Join(rootDir, repo.Path)
 		r := enriched{
-			name:       name,
-			cloned:     g.IsRepo(absPath),
-			isWorktree: g.IsWorktree(absPath),
+			name:         name,
+			cloned:       g.IsRepo(absPath),
+			isWorktree:   g.IsWorktree(absPath),
+			syncDisabled: repo.IsSyncDisabled(),
 		}
 		if !r.cloned {
 			r.output = "NOT CLONED"
@@ -121,17 +124,21 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 		if r.isWorktree {
 			r.output += "  [worktree]"
 		}
+		if r.syncDisabled {
+			r.output += "  [sync off]"
+		}
 		return r
 	})
 
 	out := make([]StatusResult, len(raw))
 	for i, r := range raw {
 		out[i] = StatusResult{
-			Name:       r.name,
-			Output:     r.output,
-			Err:        r.err,
-			IsWorktree: r.isWorktree,
-			Branch:     r.branch,
+			Name:         r.name,
+			Output:       r.output,
+			Err:          r.err,
+			IsWorktree:   r.isWorktree,
+			SyncDisabled: r.syncDisabled,
+			Branch:       r.branch,
 			Ahead:      r.ahead,
 			Behind:     r.behind,
 			Modified:   r.modified,
@@ -144,8 +151,8 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 
 // Exec runs a shell command in each selected repository.
 // If skipUncloned is true, uncloned repositories are skipped (Skipped=true) rather than failing.
-func Exec(rootDir string, repos map[string]manifest.Repository, command string, skipUncloned bool, g git.Runner) []RepoResult {
-	results := runner.Run(repos, 0, func(name string, repo manifest.Repository) runner.Result {
+func Exec(rootDir string, order []string, repos map[string]manifest.Repository, command string, skipUncloned bool, g git.Runner) []RepoResult {
+	results := runner.Run(order, repos, 0, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
 		if !g.IsRepo(absPath) {
 			if skipUncloned {

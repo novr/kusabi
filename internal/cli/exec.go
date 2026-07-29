@@ -10,7 +10,6 @@ import (
 	"github.com/novr/kusabi/internal/action"
 	"github.com/novr/kusabi/internal/declaration"
 	"github.com/novr/kusabi/internal/git"
-	"github.com/novr/kusabi/internal/manifest"
 )
 
 func newExecCmd() *cobra.Command {
@@ -36,13 +35,13 @@ func newExecCmd() *cobra.Command {
 				return nil
 			}
 
-			repos, err := buildExecRepos(f.Manifest, repoNames, tag)
+			repos, err := f.Manifest.FilterForExec(repoNames, tag)
 			if err != nil {
 				return err
 			}
 
 			g := &git.SystemGit{}
-			results := action.Exec(f.RootDir(), repos, command, skipUncloned, g)
+			results := action.Exec(f.RootDir(), f.Manifest.NamesInSet(repos), repos, command, skipUncloned, g)
 
 			sep := color.New(color.FgCyan, color.Bold)
 			warn := color.New(color.FgYellow)
@@ -74,35 +73,4 @@ func newExecCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&repoNames, "repo", nil, "Filter repositories by name (repeatable)")
 	cmd.Flags().BoolVar(&skipUncloned, "skip-uncloned", false, "Skip uncloned repositories instead of failing")
 	return cmd
-}
-
-// buildExecRepos applies --repo and --tag filters (intersection when both given).
-func buildExecRepos(m *manifest.Manifest, names []string, tag string) (map[string]manifest.Repository, error) {
-	repos := m.Repositories
-	if len(names) > 0 {
-		var err error
-		repos, err = m.FilterByNames(names)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if tag != "" {
-		tagged := make(map[string]manifest.Repository)
-		for name, repo := range repos {
-			for _, t := range repo.Tags {
-				if t == tag {
-					tagged[name] = repo
-					break
-				}
-			}
-		}
-		if len(tagged) == 0 {
-			if len(names) > 0 {
-				return nil, fmt.Errorf("no repositories matched (--repo=%v --tag=%q)", names, tag)
-			}
-			return nil, fmt.Errorf("no repositories matched tag %q", tag)
-		}
-		repos = tagged
-	}
-	return repos, nil
 }

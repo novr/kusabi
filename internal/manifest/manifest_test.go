@@ -195,3 +195,50 @@ func TestFilterByTag(t *testing.T) {
 		t.Error("backend should not be included")
 	}
 }
+
+func TestFilterForExec(t *testing.T) {
+	m := &manifest.Manifest{
+		Repositories: map[string]manifest.Repository{
+			"ios":     {Path: "pkg/ios", Tags: []string{"frontend", "ios"}},
+			"backend": {Path: "pkg/backend", Tags: []string{"backend"}},
+			"web":     {Path: "pkg/web", Tags: []string{"frontend"}},
+		},
+	}
+
+	repos, err := m.FilterForExec([]string{"ios", "web"}, "frontend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != 2 {
+		t.Fatalf("got %d repos, want 2", len(repos))
+	}
+
+	_, err = m.FilterForExec(nil, "missing")
+	if err == nil {
+		t.Fatal("expected error for unknown tag")
+	}
+
+	_, err = m.FilterForExec([]string{"ios"}, "backend")
+	if err == nil {
+		t.Fatal("expected error for empty intersection")
+	}
+}
+
+func TestNamesInSet(t *testing.T) {
+	m := &manifest.Manifest{
+		RepositoryOrder: []string{"gamma", "alpha", "beta"},
+		Repositories: map[string]manifest.Repository{
+			"alpha": {Path: "pkg/alpha"},
+			"beta":  {Path: "pkg/beta"},
+			"gamma": {Path: "pkg/gamma"},
+		},
+	}
+
+	names := m.NamesInSet(map[string]manifest.Repository{
+		"beta":  m.Repositories["beta"],
+		"gamma": m.Repositories["gamma"],
+	})
+	if len(names) != 2 || names[0] != "gamma" || names[1] != "beta" {
+		t.Fatalf("unexpected order: %v", names)
+	}
+}

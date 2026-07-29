@@ -60,12 +60,12 @@ kusabi context | pbcopy
 | コマンド | 説明 |
 | :--- | :--- |
 | `init` | `kusabi.yaml`・`AGENTS.md`・`.gitignore` を初期化 |
-| `add` / `remove` | 宣言の追加・削除（除外パスも連動） |
-| `sync` | 子リポジトリの clone / pull |
-| `status` | 各子のブランチ・作業ツリー状態 |
-| `exec` | 宣言対象への一括コマンド実行 |
+| `add` / `remove` | 宣言の追加・削除（`--branch` 対応） |
+| `sync` | 子の clone / 宣言 branch への整列 / pull（dirty・未宣言 detached は skip） |
+| `status` | 各子のブランチ・作業ツリー状態（`--json` で機械可読） |
+| `exec` | 宣言対象への一括実行（`--repo` / `--tag` / `--skip-uncloned`） |
 | `context` | 宣言・子文書を観測して出力 |
-| `doctor` | 宣言・除外・クローン状態の検査 |
+| `doctor` | 宣言・clone・branch・remote の検査（`--fix-remote` / `--migrate-gitignore`） |
 
 詳細は [PRODUCT.md](PRODUCT.md)。設計上の境界は [AGENTS.md](AGENTS.md)。
 
