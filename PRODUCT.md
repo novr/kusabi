@@ -57,6 +57,7 @@ repositories:
   app-ios:
     path: "packages/app-ios"
     url: "git@github.com:org/app-ios.git"
+    branch: "develop"
     role: "iOS Client App (Swift / SwiftUI)"
     tags: ["frontend", "ios"]
 
@@ -65,7 +66,16 @@ repositories:
     url: "git@github.com:org/app-backend.git"
     role: "Core API Server (Go / gRPC)"
     tags: ["backend", "api"]
+    sync: false   # optional: exclude from kusabi sync
 ```
+
+リポジトリフィールド:
+
+| フィールド | 意味 |
+| :--- | :--- |
+| `branch` | clone 時および sync 時に追跡する branch（省略時は remote の default） |
+| `sync: false` | `kusabi sync` の対象外（`exec` / `context` / `status` は引き続き対象） |
+| `includes` | 子ごとの context 観測パス（省略時は親の `context.includes` を継承） |
 
 ## CLI
 
@@ -74,15 +84,15 @@ repositories:
 | コマンド | 副作用 |
 | :--- | :--- |
 | `kusabi init [--force]` | `kusabi.yaml`・`AGENTS.md` テンプレート生成。`.gitignore` に除外ブロック追加 |
-| `kusabi add <name> <url> [--path] [--role] [--tags]` | 宣言更新。該当パスを `.gitignore` に追加 |
+| `kusabi add <name> <url> [--path] [--role] [--tags] [--branch]` | 宣言更新。該当パスを `.gitignore` に追加 |
 | `kusabi remove <name>` | 宣言から削除。`.gitignore` から該当パスを除去（ローカル実体は削除しない） |
-| `kusabi sync [--depth=N]` | 未クローンを clone、既存を pull。宣言・除外は変更しない |
-| `kusabi status` | 各子のブランチ・作業ツリー状態を表示 |
-| `kusabi exec [--tag=T] "<command>"` | 宣言対象（またはタグ絞り込み）でシェルコマンドを並列実行 |
+| `kusabi sync [--depth=N]` | 未クローンを clone、既存を宣言 branch へ整列して pull。dirty / 未宣言の detached HEAD は skip（warn）。pull 失敗は fail |
+| `kusabi status [--json]` | 各子のブランチ・作業ツリー状態を表示（worktree は `[worktree]` / `is_worktree`） |
+| `kusabi exec [--tag=T] [--repo=N]... [--skip-uncloned] "<command>"` | 宣言対象（タグ・名前で絞り込み可）でシェルコマンドを並列実行 |
 | `kusabi context [--tree] [--json]` | 宣言・子文書を観測して STDOUT 出力。リポジトリは変更しない |
-| `kusabi doctor` | 宣言・除外・クローン状態の不整合を検出。問題があれば非ゼロ終了 |
+| `kusabi doctor [--migrate-gitignore] [--fix-remote]` | 宣言・除外・clone・branch・remote の不整合を検出。問題があれば非ゼロ終了 |
 
-いずれの作用コマンドも、1件でも失敗があれば非ゼロ終了する。
+いずれの作用コマンドも、**失敗**（`Err`）が1件でもあれば非ゼロ終了する。**skip**（dirty / detached / sync 無効など）は warn 表示のみで終了コード 0。
 
 ## `kusabi context` 出力
 

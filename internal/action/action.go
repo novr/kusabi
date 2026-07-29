@@ -13,11 +13,24 @@ import (
 
 // RepoResult is the outcome of an operation on one repository.
 type RepoResult struct {
+	Name    string
+	Output  string
+	Err     error
+	Skipped bool // true when the operation was skipped with a warning (not a failure)
+}
+
+// StatusResult is the outcome of a status check on one repository.
+type StatusResult struct {
 	Name       string
 	Output     string
 	Err        error
-	Skipped    bool // true when the operation was skipped with a warning (not a failure)
-	IsWorktree bool // populated by Status; indicates a linked git worktree
+	IsWorktree bool
+	Branch     string
+	Ahead      int
+	Behind     int
+	Modified   int
+	Untracked  int
+	Cloned     bool
 }
 
 // Sync clones missing repositories and pulls existing ones.
@@ -32,10 +45,6 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 		}
 
 		if g.IsRepo(absPath) {
-			// Skip gracefully on detached HEAD or dirty working tree.
-			if g.IsDetachedHEAD(absPath) {
-				return runner.Result{RepoName: name, Output: "skipped: detached HEAD", Skipped: true}
-			}
 			dirty, dirtyErr := g.IsDirty(absPath)
 			if dirtyErr != nil {
 				return runner.Result{RepoName: name, Err: dirtyErr}
@@ -43,22 +52,15 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 			if dirty {
 				return runner.Result{RepoName: name, Output: "skipped: dirty working tree", Skipped: true}
 			}
-			if repo.Branch != "" {
-				current, _, err := g.CurrentBranch(absPath)
-				if err != nil {
-					return runner.Result{RepoName: name, Err: err}
-				}
-				if current != repo.Branch {
-					// Fetch before checkout so DWIM can resolve remote-tracking refs.
-					if opErr = g.Fetch(absPath, repo.Branch); opErr != nil {
-						return runner.Result{RepoName: name, Err: opErr}
-					}
-					if opErr = g.CheckoutBranch(absPath, repo.Branch); opErr != nil {
-						return runner.Result{RepoName: name, Err: opErr}
-					}
-					out = fmt.Sprintf("switched %s→%s, ", current, repo.Branch)
-				}
+			switchMsg, alignErr := alignToDeclaredBranch(absPath, repo.Branch, g)
+			if alignErr != nil {
+				return runner.Result{RepoName: name, Err: alignErr}
 			}
+			if switchMsg == "detached" {
+				return runner.Result{RepoName: name, Output: "skipped: detached HEAD", Skipped: true}
+			}
+			out = switchMsg
+
 			opErr = g.Pull(absPath)
 			if opErr == nil {
 				out += "updated"
@@ -74,17 +76,6 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 		return runner.Result{RepoName: name, Output: out, Err: opErr}
 	})
 	return toRepoResults(results)
-}
-
-// StatusResult extends RepoResult with per-repo status details for JSON output.
-type StatusResult struct {
-	RepoResult
-	Branch    string
-	Ahead     int
-	Behind    int
-	Modified  int
-	Untracked int
-	Cloned    bool
 }
 
 // Status reports branch and working tree state for each repository.
@@ -127,13 +118,19 @@ func Status(rootDir string, m *manifest.Manifest, g git.Runner) []StatusResult {
 		if s.Ahead > 0 || s.Behind > 0 {
 			r.output += fmt.Sprintf("  (↑%d ↓%d)", s.Ahead, s.Behind)
 		}
+		if r.isWorktree {
+			r.output += "  [worktree]"
+		}
 		return r
 	})
 
 	out := make([]StatusResult, len(raw))
 	for i, r := range raw {
 		out[i] = StatusResult{
-			RepoResult: RepoResult{Name: r.name, Output: r.output, Err: r.err, IsWorktree: r.isWorktree},
+			Name:       r.name,
+			Output:     r.output,
+			Err:        r.err,
+			IsWorktree: r.isWorktree,
 			Branch:     r.branch,
 			Ahead:      r.ahead,
 			Behind:     r.behind,
@@ -182,6 +179,39 @@ func HasStatusErrors(results []StatusResult) bool {
 		}
 	}
 	return false
+}
+
+// alignToDeclaredBranch checks out the declared branch when needed.
+// Returns a status message fragment (e.g. "switched main→develop, "), "detached" when
+// HEAD is detached and no branch is declared, or "" when already aligned.
+func alignToDeclaredBranch(absPath, declared string, g git.Runner) (string, error) {
+	current, detached, err := g.CurrentBranch(absPath)
+	if err != nil {
+		return "", err
+	}
+
+	if declared == "" {
+		if detached {
+			return "detached", nil
+		}
+		return "", nil
+	}
+
+	if !detached && current == declared {
+		return "", nil
+	}
+
+	if err := g.Fetch(absPath, declared); err != nil {
+		return "", err
+	}
+	if err := g.CheckoutBranch(absPath, declared); err != nil {
+		return "", err
+	}
+
+	if detached {
+		return fmt.Sprintf("switched detached→%s, ", declared), nil
+	}
+	return fmt.Sprintf("switched %s→%s, ", current, declared), nil
 }
 
 func toRepoResults(in []runner.Result) []RepoResult {
