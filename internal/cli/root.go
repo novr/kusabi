@@ -31,5 +31,6 @@ func init() {
 		newAddCmd(),
 		newRemoveCmd(),
 		newDoctorCmd(),
+		newVersionCmd(),
 	)
 }
