@@ -31,7 +31,11 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner) []RepoR
 			if g.IsDetachedHEAD(absPath) {
 				return runner.Result{RepoName: name, Output: "skipped: detached HEAD", Skipped: true}
 			}
-			if dirty, err := g.IsDirty(absPath); err == nil && dirty {
+			dirty, dirtyErr := g.IsDirty(absPath)
+			if dirtyErr != nil {
+				return runner.Result{RepoName: name, Err: dirtyErr}
+			}
+			if dirty {
 				return runner.Result{RepoName: name, Output: "skipped: dirty working tree", Skipped: true}
 			}
 			opErr = g.Pull(absPath)

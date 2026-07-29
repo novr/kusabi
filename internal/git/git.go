@@ -90,12 +90,19 @@ func (g *SystemGit) IsDetachedHEAD(path string) bool {
 	return strings.TrimSpace(out) == "HEAD"
 }
 
+// IsDirty reports whether the working tree has staged or unstaged changes to tracked files.
+// Untracked files are not considered dirty (pull --ff-only succeeds in that state).
 func (g *SystemGit) IsDirty(path string) (bool, error) {
 	out, err := output(path, "status", "--porcelain")
 	if err != nil {
 		return false, err
 	}
-	return strings.TrimSpace(out) != "", nil
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line != "" && !strings.HasPrefix(line, "??") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (g *SystemGit) IsRepo(path string) bool {
