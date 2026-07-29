@@ -10,7 +10,6 @@ import (
 
 const kusabiYAMLTemplate = `version: "1"
 name: "my-ecosystem"
-description: "Cross-platform ecosystem bound by Kusabi."
 
 context:
   agents: "./AGENTS.md"
@@ -21,22 +20,7 @@ context:
 repositories: {}
 `
 
-const agentsMDTemplate = `# AGENTS.md — Global AI Policy
-
-This project is managed by Kusabi (楔). Multiple repositories are bound here.
-
-## Architecture Overview
-
-(Describe your system architecture here)
-
-## Development Rules
-
-- Commit and Git operations must be performed within each specific sub-repository directory.
-- When implementing features that span repositories, coordinate changes explicitly.
-
-## Repository Roles
-
-(Declare roles in kusabi.yaml; ` + "`" + `kusabi context` + "`" + ` lists them in the overview section)
+const agentsMDTemplate = `# AGENTS.md
 `
 
 // InitResult describes files created or updated by Init.

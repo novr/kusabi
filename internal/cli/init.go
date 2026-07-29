@@ -34,7 +34,7 @@ func newInitCmd() *cobra.Command {
 			if result.UpdatedGitignore {
 				fmt.Println("Updated .gitignore")
 			}
-			fmt.Println("\nDone! Run `kusabi add <name> <url>` to add repositories.")
+			fmt.Println("Run `kusabi add <name> <url>` to add repositories.")
 			return nil
 		},
 	}

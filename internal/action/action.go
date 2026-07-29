@@ -20,13 +20,11 @@ type RepoResult struct {
 	Skipped bool // true when the operation was skipped with a warning (not a failure)
 }
 
-// SyncProgress reports per-repository sync activity. Called from parallel goroutines.
+// SyncProgress reports completion of one repository during sync.
 type SyncProgress struct {
-	Name    string
-	Total   int
-	Done    int // repositories finished so far, including this event when Started is false
-	Started bool
-	Result  RepoResult // set when Started is false
+	Total  int
+	Done   int
+	Result RepoResult
 }
 
 // StatusResult is the outcome of a status check on one repository.
@@ -53,17 +51,12 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner, onProgr
 	if onProgress != nil {
 		var done atomic.Int32
 		hooks = &runner.Hooks{
-			OnStart: func(name string, _, _ int) {
-				onProgress(SyncProgress{Name: name, Total: total, Started: true})
-			},
 			OnDone: func(r runner.Result) {
 				n := int(done.Add(1))
 				onProgress(SyncProgress{
-					Name:    r.RepoName,
-					Total:   total,
-					Done:    n,
-					Started: false,
-					Result:  repoResultFromRunner(r),
+					Total:  total,
+					Done:   n,
+					Result: repoResultFromRunner(r),
 				})
 			},
 		}

@@ -2,44 +2,13 @@
 
 *Connect Repositories. Unify Contexts.*
 
-A CLI that binds multiple Git repositories and surfaces declaration plus each child's documents as **read-only observations** in one context. Child content never enters the parent's Git history, and Kusabi does not take on Submodule friction.
-
 ## Install
 
-### Homebrew (recommended)
-
 ```bash
-brew tap novr/taps
-brew install kusabi
-```
-
-Installs `kusabi` (`ksb` / `git-kusabi` are symlinks to the same binary). Release tarballs ship `kusabi` only.
-
-### Go install
-
-```bash
+brew tap novr/taps && brew install kusabi
+# or
 go install github.com/novr/kusabi/cmd/kusabi@latest
 ```
-
-For `ksb` or `git kusabi`, symlink the installed binary (Homebrew does this automatically):
-
-```bash
-ln -s "$(command -v kusabi)" "$(dirname "$(command -v kusabi)")/ksb"
-ln -s "$(command -v kusabi)" "$(dirname "$(command -v kusabi)")/git-kusabi"
-```
-
-## Release
-
-Pushing a `v*` tag creates a GitHub Release and updates the [homebrew-taps](https://github.com/novr/homebrew-taps) formula.
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Manual runs: Actions workflow **Release Assets**.
-
-**Prerequisites:** repository secrets `NOVRD_BOT_CLIENT_ID` / `NOVRD_BOT_KEY`, and org access to the `novr/homebrew-taps` reusable workflow ([new-tool.md](https://github.com/novr/homebrew-taps/blob/main/docs/new-tool.md)).
 
 ## Quick start
 
@@ -55,24 +24,11 @@ kusabi doctor
 kusabi context | pbcopy
 ```
 
-## Layout
-
-```plaintext
-my-project-meta/
-├── kusabi.yaml          # binding declaration (required)
-├── AGENTS.md            # global policy (optional; observed by context)
-├── .gitignore           # child paths excluded on init/add/remove
-└── packages/            # child repositories (excluded from parent history)
-    ├── app-ios/
-    └── app-backend/
-```
-
 ## Manifest (`kusabi.yaml`)
 
 ```yaml
 version: "1"
 name: "my-ecosystem"
-description: "Cross-platform ecosystem bound by Kusabi."
 
 context:
   agents: "./AGENTS.md"
@@ -80,47 +36,50 @@ context:
     - "team-knowledge/ADR.md"
   includes:
     - "README.md"
-    - "CLAUDE.md"
 
 repositories:
   app-ios:
     path: "packages/app-ios"
     url: "git@github.com:org/app-ios.git"
     branch: "develop"
-    role: "iOS Client App (Swift / SwiftUI)"
+    role: "iOS Client App"
     tags: ["frontend", "ios"]
 
   app-backend:
     path: "packages/app-backend"
     url: "git@github.com:org/app-backend.git"
-    role: "Core API Server (Go / gRPC)"
-    tags: ["backend", "api"]
-    sync: false   # optional: exclude from kusabi sync
+    sync: false
 ```
 
-| Field | Meaning |
+| Field | |
 | :--- | :--- |
-| `branch` | Branch to clone and track on sync (default: remote default) |
-| `sync: false` | Skip `kusabi sync` (still included in `exec` / `context` / `status`) |
-| `includes` | Per-child context paths (inherits parent `context.includes` when omitted) |
+| `branch` | Clone and track on sync (remote default when omitted) |
+| `sync: false` | Excluded from `sync` only |
+| `context.paths` | Parent files included in `context` output |
+| `includes` | Per-child context paths; inherits parent `context.includes` when omitted |
 
 ## Commands
 
-| Command | Description |
+| Command | |
 | :--- | :--- |
-| `init` | Initialize `kusabi.yaml`, `AGENTS.md`, `.gitignore` |
-| `add` / `remove` | Add or remove declarations (`--branch` supported) |
-| `sync` | Clone missing repos, align to declared branch, pull (`updated` / `updated: no change`; dirty or undeclared detached HEAD → skip) |
-| `status` | Branch and working tree per child (`--json` for machine-readable output) |
-| `exec` | Run a command across declared repos (`--repo` / `--tag` / `--skip-uncloned`) |
-| `context` | Emit declaration and child documents as observations |
-| `doctor` | Check declaration, clone, branch, remote (`--fix-remote` / `--migrate-gitignore`) |
+| `init [--force]` | Scaffold `kusabi.yaml`, `AGENTS.md`, `.gitignore` |
+| `add` / `remove` | Edit declaration (`--path`, `--role`, `--tags`, `--branch`) |
+| `sync [--depth]` | Clone or pull; align to declared branch |
+| `status [--json]` | Branch and working tree per child |
+| `exec` | Shell command across children (`--repo`, `--tag`, `--skip-uncloned`) |
+| `context [--tree] [--json]` | Observed context to stdout |
+| `doctor` | Health checks (`--fix-remote`, `--migrate-gitignore`) |
+| `version` | Print version |
 
-Action commands exit non-zero when any repository **fails** (`Err`). **Skips** (dirty, detached, sync disabled, etc.) are warnings only and exit 0.
+Failures exit non-zero; skips are warnings only.
 
-Binary: `kusabi`. Homebrew installs `ksb` and `git-kusabi` as symlinks; `git kusabi` works when `git-kusabi` is on `PATH`.
+## Agent boundaries
 
-Design boundaries: [AGENTS.md](AGENTS.md).
+[AGENTS.md](AGENTS.md)
+
+## Release
+
+Push a `v*` tag — see [release.yml](.github/workflows/release.yml).
 
 ## Development
 

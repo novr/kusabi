@@ -9,11 +9,9 @@ import (
 var rootCmd = &cobra.Command{
 	Use:          "kusabi",
 	Short:        "Bind multiple Git repositories and aggregate context for agents",
-	Long:         "Kusabi declares how repositories are bound, operates on them, and outputs their documents as observed context.",
 	SilenceUsage: true,
 }
 
-// Execute is the entry point called from main.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

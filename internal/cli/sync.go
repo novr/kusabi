@@ -30,7 +30,6 @@ func newSyncCmd() *cobra.Command {
 				return nil
 			}
 
-			// Ensure all manifest paths are present in .gitignore before cloning.
 			for _, repo := range f.Manifest.Repositories {
 				if err := declaration.EnsureGitignoreEntry(f.RootDir(), repo.Path); err != nil {
 					fmt.Fprintf(os.Stderr, "warning: .gitignore update failed for %s: %v\n", repo.Path, err)
@@ -60,9 +59,6 @@ func newSyncCmd() *cobra.Command {
 			}
 
 			results := action.Sync(f.RootDir(), f.Manifest, depth, g, func(p action.SyncProgress) {
-				if p.Started {
-					return
-				}
 				mu.Lock()
 				defer mu.Unlock()
 				printResult(p.Result, p.Done, p.Total)
