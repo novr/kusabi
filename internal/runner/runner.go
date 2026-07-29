@@ -60,3 +60,53 @@ func Run(
 	})
 	return results
 }
+
+// RunTyped is like Run but the callback returns an arbitrary type T.
+// Results are returned in stable alphabetical order by repository name.
+func RunTyped[T any](
+	repos map[string]manifest.Repository,
+	maxConcurrency int,
+	fn func(name string, repo manifest.Repository) T,
+) []T {
+	if maxConcurrency <= 0 {
+		maxConcurrency = runtime.NumCPU() * 2
+	}
+
+	type indexed struct {
+		name string
+		val  T
+	}
+
+	sem := semaphore.NewWeighted(int64(maxConcurrency))
+	ctx := context.Background()
+
+	items := make([]indexed, 0, len(repos))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for name, repo := range repos {
+		wg.Add(1)
+		go func(n string, r manifest.Repository) {
+			defer wg.Done()
+			_ = sem.Acquire(ctx, 1)
+			defer sem.Release(1)
+
+			v := fn(n, r)
+			mu.Lock()
+			items = append(items, indexed{name: n, val: v})
+			mu.Unlock()
+		}(name, repo)
+	}
+
+	wg.Wait()
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].name < items[j].name
+	})
+
+	out := make([]T, len(items))
+	for i, it := range items {
+		out[i] = it.val
+	}
+	return out
+}

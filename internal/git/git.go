@@ -15,6 +15,7 @@ type Runner interface {
 	Pull(path string) error
 	Status(path string) (StatusResult, error)
 	IsRepo(path string) bool
+	IsWorktree(path string) bool
 	IsDetachedHEAD(path string) bool
 	IsDirty(path string) (bool, error)
 	RemoteURL(path, remote string) (string, error)
@@ -85,6 +86,17 @@ func (g *SystemGit) Status(path string) (StatusResult, error) {
 	}
 
 	return result, nil
+}
+
+// IsWorktree reports whether path is a linked git worktree (vs a main clone).
+// A linked worktree has .git as a regular file; a main clone has .git as a directory.
+func (g *SystemGit) IsWorktree(path string) bool {
+	dotGit := filepath.Join(path, ".git")
+	info, err := os.Stat(dotGit)
+	if err != nil {
+		return false
+	}
+	return info.Mode().IsRegular()
 }
 
 func (g *SystemGit) IsDetachedHEAD(path string) bool {

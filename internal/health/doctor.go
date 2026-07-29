@@ -100,6 +100,17 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 				checks = append(checks, Check{OK: true, Label: fmt.Sprintf("[%s] remote", name)})
 			}
 		}
+
+		// Worktree detection: informational only, not a failure.
+		if g.IsRepo(absPath) {
+			if g.IsWorktree(absPath) {
+				checks = append(checks, Check{
+					OK:     true,
+					Label:  fmt.Sprintf("[%s] worktree", name),
+					Detail: "linked worktree detected",
+				})
+			}
+		}
 	}
 
 	return checks

@@ -62,3 +62,39 @@ func TestIsDirty_NotARepo(t *testing.T) {
 		t.Fatal("expected error for non-repo directory")
 	}
 }
+
+func TestIsWorktree_DirectoryGit(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	g := &git.SystemGit{}
+	if g.IsWorktree(dir) {
+		t.Fatal("expected directory .git to NOT be a worktree")
+	}
+}
+
+func TestIsWorktree_GitFile(t *testing.T) {
+	dir := t.TempDir()
+	gitdir := filepath.Join(dir, "actual-git")
+	if err := os.Mkdir(gitdir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: "+gitdir+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	g := &git.SystemGit{}
+	if !g.IsWorktree(dir) {
+		t.Fatal("expected gitfile .git to be detected as worktree")
+	}
+}
+
+func TestIsWorktree_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	g := &git.SystemGit{}
+	if g.IsWorktree(dir) {
+		t.Fatal("expected non-repo directory to return false for IsWorktree")
+	}
+}
