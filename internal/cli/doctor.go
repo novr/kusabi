@@ -109,9 +109,12 @@ func runMigrateGitignore(f *manifest.File) error {
 }
 
 // runFixRemote sets the origin remote URL to the declared value for repos with URL mismatches.
+// It processes all repos and returns a combined error summary.
 func runFixRemote(f *manifest.File, g git.Runner) error {
 	rootDir := f.RootDir()
 	fixColor := color.New(color.FgCyan)
+	warnColor := color.New(color.FgYellow)
+	var errs []string
 	for _, name := range f.Manifest.RepositoryNames() {
 		repo := f.Manifest.Repositories[name]
 		absPath := filepath.Join(rootDir, repo.Path)
@@ -120,6 +123,9 @@ func runFixRemote(f *manifest.File, g git.Runner) error {
 		}
 		actual, err := g.RemoteURL(absPath, "origin")
 		if err != nil {
+			// origin remote doesn't exist; set-url won't work — note it and continue.
+			warnColor.Printf("  ⚠ [%s] no origin remote — add manually: git -C %s remote add origin %s\n",
+				name, repo.Path, repo.URL)
 			continue
 		}
 		// Only fix repos where the canonical URLs differ.
@@ -127,9 +133,13 @@ func runFixRemote(f *manifest.File, g git.Runner) error {
 			continue
 		}
 		if err := g.SetRemoteURL(absPath, "origin", repo.URL); err != nil {
-			return fmt.Errorf("fix remote for %s: %w", name, err)
+			errs = append(errs, fmt.Sprintf("%s: %v", name, err))
+			continue
 		}
 		fixColor.Printf("  ↳ fixed [%s] origin: %s → %s\n", name, actual, repo.URL)
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("fix remote failed for: %s", strings.Join(errs, "; "))
 	}
 	return nil
 }
