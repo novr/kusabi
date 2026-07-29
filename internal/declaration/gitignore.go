@@ -119,6 +119,28 @@ func removeEntry(slice []string, s string) []string {
 	return out
 }
 
+// IsExcludedInFullGitignore reports whether repoPath appears in the entire .gitignore
+// (including lines outside the kusabi managed block). It performs simple string matching
+// for the path and path+"/" forms; complex glob patterns are not expanded.
+func IsExcludedInFullGitignore(dir, repoPath string) bool {
+	path := filepath.Join(dir, ".gitignore")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	entry := repoPath + "/"
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if line == repoPath || line == entry {
+			return true
+		}
+	}
+	return false
+}
+
 // EnsureGitignoreEntry adds repoPath to the kusabi-managed block if not already present.
 func EnsureGitignoreEntry(dir, repoPath string) error {
 	entries := GitignoreEntries(dir)
