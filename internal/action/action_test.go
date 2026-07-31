@@ -138,7 +138,7 @@ func TestSync_AlignsDeclaredBranch(t *testing.T) {
 		},
 	}
 
-	results := action.Sync("", m, 0, g, nil)
+	results := action.Sync("", m, 0, 0, g, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -170,7 +170,7 @@ func TestSync_DetachedHEADWithDeclaredBranch_ChecksOut(t *testing.T) {
 		},
 	}
 
-	results := action.Sync("", m, 0, g, nil)
+	results := action.Sync("", m, 0, 0, g, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -196,7 +196,7 @@ func TestSync_DetachedHEADWithoutDeclaredBranch_Skips(t *testing.T) {
 		},
 	}
 
-	results := action.Sync("", m, 0, g, nil)
+	results := action.Sync("", m, 0, 0, g, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -219,7 +219,7 @@ func TestSync_PullNoChange(t *testing.T) {
 		},
 	}
 
-	results := action.Sync("", m, 0, g, nil)
+	results := action.Sync("", m, 0, 0, g, nil)
 	if results[0].Output != "updated: no change" {
 		t.Errorf("expected updated: no change, got %q", results[0].Output)
 	}

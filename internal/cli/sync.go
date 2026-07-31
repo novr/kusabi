@@ -15,6 +15,7 @@ import (
 
 func newSyncCmd() *cobra.Command {
 	var depth int
+	var jobs int
 
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -58,7 +59,7 @@ func newSyncCmd() *cobra.Command {
 				}
 			}
 
-			results := action.Sync(f.RootDir(), f.Manifest, depth, g, func(p action.SyncProgress) {
+			results := action.Sync(f.RootDir(), f.Manifest, depth, jobs, g, func(p action.SyncProgress) {
 				mu.Lock()
 				defer mu.Unlock()
 				printResult(p.Result, p.Done, p.Total)
@@ -70,5 +71,6 @@ func newSyncCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&depth, "depth", 0, "Git clone depth (0 = full clone)")
+	cmd.Flags().IntVar(&jobs, "jobs", 0, "Max parallel repositories (0 = NumCPU*2)")
 	return cmd
 }

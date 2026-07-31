@@ -51,11 +51,23 @@ func (g *SystemGit) Clone(url, path, branch string, depth int) error {
 }
 
 func (g *SystemGit) Pull(path string) (bool, error) {
+	before, err := output(path, "rev-parse", "HEAD")
+	if err != nil {
+		return false, fmt.Errorf("git rev-parse HEAD: %w", err)
+	}
+	before = strings.TrimSpace(before)
+
 	out, err := combinedOutput(path, "pull", "--ff-only")
 	if err != nil {
 		return false, fmt.Errorf("git pull --ff-only: %w\n%s", err, out)
 	}
-	return !strings.Contains(out, "Already up to date"), nil
+
+	after, err := output(path, "rev-parse", "HEAD")
+	if err != nil {
+		return false, fmt.Errorf("git rev-parse HEAD: %w", err)
+	}
+	after = strings.TrimSpace(after)
+	return before != after, nil
 }
 
 func (g *SystemGit) Status(path string) (StatusResult, error) {

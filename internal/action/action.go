@@ -43,7 +43,7 @@ type StatusResult struct {
 }
 
 // Sync clones missing repositories and pulls existing ones.
-func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner, onProgress func(SyncProgress)) []RepoResult {
+func Sync(rootDir string, m *manifest.Manifest, depth, concurrency int, g git.Runner, onProgress func(SyncProgress)) []RepoResult {
 	names := m.RepositoryNames()
 	total := len(names)
 
@@ -62,7 +62,7 @@ func Sync(rootDir string, m *manifest.Manifest, depth int, g git.Runner, onProgr
 		}
 	}
 
-	results := runner.Run(names, m.Repositories, 0, hooks, func(name string, repo manifest.Repository) runner.Result {
+	results := runner.Run(names, m.Repositories, concurrency, hooks, func(name string, repo manifest.Repository) runner.Result {
 		absPath := filepath.Join(rootDir, repo.Path)
 		var out string
 		var opErr error

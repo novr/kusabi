@@ -2,6 +2,10 @@
 
 *Connect Repositories. Unify Contexts.*
 
+Kusabi is a **meta-repo CLI**: declare child Git repositories, keep their files out of the parent history, sync and inspect them together, and emit **`kusabi context`** for agents. It is not a submodule wrapper or a monorepo build orchestrator.
+
+Commit in the meta repo: `kusabi.yaml`, policy files (`AGENTS.md`, `context.paths`), and the managed `.gitignore` block — not child repository contents.
+
 ## Install
 
 ```bash
@@ -55,8 +59,18 @@ repositories:
 | :--- | :--- |
 | `branch` | Clone and track on sync (remote default when omitted) |
 | `sync: false` | Excluded from `sync` only |
-| `context.paths` | Parent files included in `context` output |
+| `context.paths` | Parent files included in `context` (missing paths are reported) |
 | `includes` | Per-child context paths; inherits parent `context.includes` when omitted |
+
+### Context includes
+
+Per child, files are read in this order:
+
+1. `repositories.<name>.includes`
+2. `context.includes` in the manifest
+3. Default: `README.md`, `CLAUDE.md` (only when both above are unset)
+
+Missing child include files are skipped silently. `context --max-bytes` caps observed file/tree content (headings and overview stay); omitted paths are listed at the end (or in JSON `meta.omitted`).
 
 ## Commands
 
@@ -64,10 +78,10 @@ repositories:
 | :--- | :--- |
 | `init [--force]` | Scaffold `kusabi.yaml`, `AGENTS.md`, `.gitignore` |
 | `add` / `remove` | Edit declaration (`--path`, `--role`, `--tags`, `--branch`) |
-| `sync [--depth]` | Clone or pull; align to declared branch |
+| `sync [--depth] [--jobs]` | Clone or pull; align to declared branch |
 | `status [--json]` | Branch and working tree per child |
 | `exec` | Shell command across children (`--repo`, `--tag`, `--skip-uncloned`) |
-| `context [--tree] [--json]` | Observed context to stdout |
+| `context [--tree] [--json] [--repo] [--max-bytes]` | Observed context to stdout |
 | `doctor` | Health checks (`--fix-remote`, `--migrate-gitignore`) |
 | `version` | Print version |
 

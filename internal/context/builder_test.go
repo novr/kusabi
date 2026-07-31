@@ -359,3 +359,73 @@ func TestBuildJSON_AllIncludes(t *testing.T) {
 		t.Errorf("expected context_files array in JSON, got:\n%s", out)
 	}
 }
+
+func TestBuild_MaxBytes(t *testing.T) {
+	dir := t.TempDir()
+	repoDir := filepath.Join(dir, "packages", "app")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte(strings.Repeat("x", 200)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := &manifest.Manifest{
+		Version: "1",
+		Name:    "test",
+		Context: manifest.ContextConfig{
+			Includes: []string{"README.md"},
+		},
+		Repositories: map[string]manifest.Repository{
+			"app": {Path: "packages/app", URL: "git@example.com/app.git"},
+		},
+	}
+
+	b := &kctx.Builder{Manifest: m, RootDir: dir, MaxBytes: 50}
+	out, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Omitted (context --max-bytes)") {
+		t.Errorf("expected omitted section, got:\n%s", out)
+	}
+	if strings.Contains(out, strings.Repeat("x", 200)) {
+		t.Error("large README content should be omitted when over --max-bytes")
+	}
+	if !strings.Contains(out, "app: README.md") {
+		t.Errorf("expected omitted label for README, got:\n%s", out)
+	}
+}
+
+func TestBuild_RepoFilter(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"a", "b"} {
+		repoDir := filepath.Join(dir, "packages", name)
+		if err := os.MkdirAll(repoDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte(name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	m := &manifest.Manifest{
+		Version:          "1",
+		Name:             "test",
+		RepositoryOrder:  []string{"a", "b"},
+		Context:          manifest.ContextConfig{Includes: []string{"README.md"}},
+		Repositories: map[string]manifest.Repository{
+			"a": {Path: "packages/a", URL: "git@example.com/a.git"},
+			"b": {Path: "packages/b", URL: "git@example.com/b.git"},
+		},
+	}
+
+	b := &kctx.Builder{Manifest: m, RootDir: dir, RepoNames: []string{"b"}}
+	out, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "packages/b") || strings.Contains(out, "packages/a") {
+		t.Errorf("expected only repo b, got:\n%s", out)
+	}
+}

@@ -12,8 +12,10 @@ import (
 
 func newContextCmd() *cobra.Command {
 	var (
-		tree   bool
-		asJSON bool
+		tree      bool
+		asJSON    bool
+		repoNames []string
+		maxBytes  int
 	)
 
 	cmd := &cobra.Command{
@@ -25,10 +27,18 @@ func newContextCmd() *cobra.Command {
 				return err
 			}
 
+			if len(repoNames) > 0 {
+				if _, err := f.Manifest.FilterByNames(repoNames); err != nil {
+					return err
+				}
+			}
+
 			b := &kctx.Builder{
 				Manifest:    f.Manifest,
 				RootDir:     f.RootDir(),
 				IncludeTree: tree,
+				RepoNames:   repoNames,
+				MaxBytes:    maxBytes,
 			}
 
 			if asJSON {
@@ -50,5 +60,7 @@ func newContextCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&tree, "tree", false, "Include directory structure for each repository")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Output as structured JSON")
+	cmd.Flags().StringSliceVar(&repoNames, "repo", nil, "Limit to named repositories (repeatable)")
+	cmd.Flags().IntVar(&maxBytes, "max-bytes", 0, "Cap total context size in bytes (0 = unlimited)")
 	return cmd
 }
