@@ -21,12 +21,14 @@ mkdir my-meta && cd my-meta
 git init
 
 kusabi init
-kusabi add app-ios git@github.com:org/app-ios.git --role "iOS App"
+kusabi add app-ios git@github.com:org/app-ios.git --role "iOS App" --branch develop
 kusabi add app-backend git@github.com:org/app-backend.git --role "API Server"
 kusabi sync
+kusabi status
 kusabi doctor
-kusabi context | pbcopy
 ```
+
+`sync` checks out each child's declared `branch` when the working tree is clean, then pulls `--ff-only`. Dirty children are skipped (warning, exit 0) — read the per-child lines; exit 0 is not "everything updated". Product commits happen inside each child directory, not at the meta-repo root.
 
 ## Manifest (`kusabi.yaml`)
 
@@ -86,6 +88,17 @@ Missing child include files are skipped silently. `context --max-bytes` caps obs
 | `version` | Print version |
 
 Failures exit non-zero; skips are warnings only.
+
+## Agent skill
+
+Install into each **meta repo** (so the team shares the same agent behavior):
+
+```bash
+cd /path/to/your-meta-repo
+npx skills add novr/kusabi
+```
+
+Use `-g` only for personal use across several meta repos. The skill assumes `kusabi` is already on `PATH` (see Install). It teaches agents to run `status` before `sync`, treat skipped dirty children as a partial update, and keep product commits inside children — see [.agents/skills/kusabi](.agents/skills/kusabi/SKILL.md).
 
 ## Agent boundaries
 
