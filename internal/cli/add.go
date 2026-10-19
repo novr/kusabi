@@ -20,6 +20,7 @@ func newAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <name> <url>",
 		Short: "Add a repository to kusabi.yaml",
+		Long:  "Add a repository to kusabi.yaml. URL may be a full git remote or GitHub owner/repo shorthand (https://github.com/...). Local remotes need ./path, an absolute path, or file://.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, url := args[0], args[1]
@@ -38,7 +39,7 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Added repository %q (%s)\n", name, url)
+			fmt.Printf("Added repository %q (%s)\n", name, f.Manifest.Repositories[name].URL)
 			return nil
 		},
 	}

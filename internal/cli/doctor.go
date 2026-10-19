@@ -121,22 +121,23 @@ func runFixRemote(f *manifest.File, g git.Runner) error {
 		if !g.IsRepo(absPath) || repo.URL == "" {
 			continue
 		}
+		declaredURL := giturl.Resolve(repo.URL, rootDir)
 		actual, err := g.RemoteURL(absPath, "origin")
 		if err != nil {
 			// origin remote doesn't exist; set-url won't work — note it and continue.
 			warnColor.Printf("  ⚠ [%s] no origin remote — add manually: git -C %s remote add origin %s\n",
-				name, repo.Path, repo.URL)
+				name, repo.Path, declaredURL)
 			continue
 		}
 		// Only fix repos where the canonical URLs differ.
-		if giturl.Equal(repo.URL, actual) {
+		if giturl.Equal(declaredURL, actual) {
 			continue
 		}
-		if err := g.SetRemoteURL(absPath, "origin", repo.URL); err != nil {
+		if err := g.SetRemoteURL(absPath, "origin", declaredURL); err != nil {
 			errs = append(errs, fmt.Sprintf("%s: %v", name, err))
 			continue
 		}
-		fixColor.Printf("  ↳ fixed [%s] origin: %s → %s\n", name, actual, repo.URL)
+		fixColor.Printf("  ↳ fixed [%s] origin: %s → %s\n", name, actual, declaredURL)
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("fix remote failed for: %s", strings.Join(errs, "; "))

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/novr/kusabi/internal/git"
+	"github.com/novr/kusabi/internal/giturl"
 	"github.com/novr/kusabi/internal/manifest"
 	"github.com/novr/kusabi/internal/runner"
 )
@@ -99,7 +100,7 @@ func Sync(rootDir string, m *manifest.Manifest, depth, concurrency int, g git.Ru
 			}
 		} else {
 			if opErr = os.MkdirAll(filepath.Dir(absPath), 0755); opErr == nil {
-				opErr = g.Clone(repo.URL, absPath, repo.Branch, depth)
+				opErr = g.Clone(giturl.Resolve(repo.URL, rootDir), absPath, repo.Branch, depth)
 				if opErr == nil {
 					out = "cloned"
 				}

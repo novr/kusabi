@@ -9,6 +9,57 @@ import (
 	"github.com/novr/kusabi/internal/manifest"
 )
 
+func TestAddRepo_ExpandsGitHubShorthand(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+	if err := os.WriteFile(path, []byte(`version: "1"
+name: test
+repositories: {}
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := manifest.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := declaration.AddRepo(f, "app", "yumemi/coop9-android", declaration.AddRepoOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	repo := f.Manifest.Repositories["app"]
+	want := "https://github.com/yumemi/coop9-android"
+	if repo.URL != want {
+		t.Fatalf("URL = %q, want %q", repo.URL, want)
+	}
+}
+
+func TestAddRepo_KeepsExistingLocalRelativeRemote(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, manifest.Filename)
+	if err := os.WriteFile(path, []byte(`version: "1"
+name: test
+repositories: {}
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "vendor", "mirror"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := manifest.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := declaration.AddRepo(f, "mirror", "vendor/mirror", declaration.AddRepoOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Manifest.Repositories["mirror"].URL; got != "vendor/mirror" {
+		t.Fatalf("URL = %q, want local relative remote kept", got)
+	}
+}
+
 func TestAddRepo_RollsBackOnInvalidPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, manifest.Filename)

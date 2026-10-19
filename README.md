@@ -22,7 +22,8 @@ git init
 
 kusabi init
 kusabi add app-ios git@github.com:org/app-ios.git --role "iOS App" --branch develop
-kusabi add app-backend git@github.com:org/app-backend.git --role "API Server"
+kusabi add app-backend org/app-backend --role "API Server"   # → https://github.com/org/app-backend
+# Local remotes: use ./path, absolute path, or file:// — bare a/b is GitHub shorthand.
 kusabi sync
 kusabi status
 kusabi doctor
@@ -79,7 +80,7 @@ Missing child include files are skipped silently. `context --max-bytes` caps obs
 | Command | |
 | :--- | :--- |
 | `init [--force]` | Scaffold `kusabi.yaml`, `AGENTS.md`, `.gitignore` |
-| `add` / `remove` | Edit declaration (`--path`, `--role`, `--tags`, `--branch`) |
+| `add` / `remove` | Edit declaration (`--path`, `--role`, `--tags`, `--branch`); `add` accepts GitHub `owner/repo` |
 | `sync [--depth] [--jobs]` | Clone or pull; align to declared branch |
 | `status [--json]` | Branch and working tree per child |
 | `exec` | Shell command across children (`--repo`, `--tag`, `--skip-uncloned`) |
