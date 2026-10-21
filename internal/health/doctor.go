@@ -131,7 +131,7 @@ func Doctor(f *manifest.File, g git.Runner) []Check {
 					Label:  fmt.Sprintf("[%s] remote", name),
 					Detail: "no origin remote configured",
 				})
-			} else if !giturl.Equal(repo.URL, actual) {
+			} else if !giturl.Equal(giturl.Resolve(repo.URL, rootDir), actual) {
 				checks = append(checks, Check{
 					Label:  fmt.Sprintf("[%s] remote", name),
 					Detail: fmt.Sprintf("declared %q but origin is %q (run `kusabi doctor --fix-remote`)", repo.URL, actual),

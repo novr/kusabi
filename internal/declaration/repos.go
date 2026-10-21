@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/novr/kusabi/internal/giturl"
 	"github.com/novr/kusabi/internal/manifest"
 )
 
@@ -34,7 +35,7 @@ func AddRepo(f *manifest.File, name, url string, opts AddRepoOptions) error {
 
 	repo := manifest.Repository{
 		Path:   path,
-		URL:    url,
+		URL:    giturl.Resolve(url, f.RootDir()),
 		Role:   opts.Role,
 		Tags:   opts.Tags,
 		Branch: opts.Branch,

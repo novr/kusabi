@@ -56,7 +56,7 @@ A sync that exits 0 with several `skipped: dirty…` lines left the workspace **
 | What is going on? | `kusabi status --json` (default first move) |
 | Pull latest | Gate with status, then `kusabi sync` |
 | Same shell command in several children | `kusabi exec --repo a --repo b '…'` — one quoted argument |
-| Bind a new child | `kusabi add <name> <url> [--path …] [--branch …] [--role …] [--tags …]`, commit the parent, then sync as a **separate** step |
+| Bind a new child | `kusabi add <name> <url> [--path …] [--branch …] [--role …] [--tags …]` (`url` may be GitHub `owner/repo`), commit the parent, then sync as a **separate** step |
 | Drop a binding | `kusabi remove <name>` updates yaml + managed gitignore only; the directory remains — delete it yourself if the user wants the disk gone |
 | Health / `.gitignore` / remote drift | `kusabi doctor` (+ repair flags only if asked) |
 
